@@ -185,7 +185,8 @@
 <div id="root"></div>
 
 <script src="env-loader.js"></script>
-<script>
+<script type="module">
+const { React, ReactDOM } = window;
 const { useState, useRef, useEffect, useCallback } = React;
 
 const useWindowWidth = () => {
@@ -522,8 +523,8 @@ const Wizard = ({ open, onClose, prefill, onComplete }) => {
   };
   return /* @__PURE__ */ React.createElement(Modal, { open, onClose: close, wide: true }, /* @__PURE__ */ React.createElement("div", { style: { padding: "28px 28px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", null, !submitted && /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 4 } }, "Step ", step, " of 5 \xB7 ", WZ_HNTS[step]), /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[950] } }, submitted ? "Application received" : WZ_LBLS[step])), /* @__PURE__ */ React.createElement("button", { onClick: close, style: { background: "none", border: "none", color: G[400], cursor: "pointer", lineHeight: 1, padding: 4, display: "flex", alignItems: "center" } }, /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 18, color: G[400] }))), !submitted && /* @__PURE__ */ React.createElement("div", { style: { height: 3, background: G[100], borderRadius: 3, marginBottom: 24, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: T[500], borderRadius: 3, transition: "width .35s ease" } }))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 28px 28px" } }, body(), !submitted && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 28 } }, /* @__PURE__ */ React.createElement("button", { onClick: step === 1 ? close : back, style: { ...s.btnGhost, visibility: step === 1 ? "hidden" : "visible" } }, "Back"), /* @__PURE__ */ React.createElement("button", { onClick: next, style: s.btnPrimary }, step === 5 ? "Submit application" : "Continue"))));
 };
-const SUPA_URL = window.env?.SUPABASE_URL;
-const SUPA_KEY = window.env?.SUPABASE_KEY;
+let SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+let SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
 const supaFetch = (path, body) => fetch(`${SUPA_URL}/auth/v1/${path}`, {
   method: "POST",
   headers: { "Content-Type": "application/json", "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}` },
@@ -1694,6 +1695,8 @@ const App = () => {
 };
 const startApp = async () => {
   await window.loadEnv();
+  if (!SUPA_URL) SUPA_URL = window.env?.VITE_SUPABASE_URL || window.env?.SUPABASE_URL;
+  if (!SUPA_KEY) SUPA_KEY = window.env?.VITE_SUPABASE_KEY || window.env?.SUPABASE_KEY;
   const root = ReactDOM.createRoot(document.getElementById("root"));
   root.render(/* @__PURE__ */ React.createElement(App, null));
 };
