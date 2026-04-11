@@ -18,7 +18,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const isNewUser = !isDemo;
   const [screen, setScreen] = useState("overview");
   const [caseTab, setCaseTab] = useState("journey");
-  const [msgs, setMsgs] = useState(INIT_MSGS);
+  const [msgs, setMsgs] = useState(isDemo ? INIT_MSGS : []);
   const [msgInput, setMsgInput] = useState("");
   const [sidebarItem, setSidebarItem] = useState("Overview");
   const [checkDone, setCheckDone] = useState(Array(RECOVERY_CHECKS.length).fill(false));
@@ -120,12 +120,16 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [service, setService] = useState("Initial Consultation");
 
-  const [patPayments, setPatPayments] = useState([]);
+  const PAT_PAYMENTS_DEMO = [
+    { date: "Mar 20", desc: "Surgery \u2014 Rhinoplasty", amount: "4200", status: "Paid", method: "PayPal" },
+    { date: "Apr 20", desc: "Telemedicine Fee", amount: "75", status: "Pending", method: "\u2014" }
+  ];
+  const [patPayments, setPatPayments] = useState(isDemo ? PAT_PAYMENTS_DEMO : []);
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
   const fetchPayments = async () => {
-    if (!user || !user.id) return;
+    if (!user || !user.id || isDemo) return;
     const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
     const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
     try {
@@ -146,7 +150,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
             status: p.estado_pago === "pendiente" ? "Pending" : "Paid",
             method: p.deposito_pagado ? "Visa ...4242" : "\u2014"
           }));
-          setPatPayments(mapped.length > 0 ? mapped : PAT_PAYMENTS);
+          setPatPayments(mapped.length > 0 ? mapped : []);
         }
       }
     } catch (e) { console.error(e); }
@@ -194,8 +198,13 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     ["My Journey", [
       ["Overview", "activity", () => navTo("Overview", "overview")],
       ["My Case", "clipboard", () => navTo("My Case", "case", "journey")],
+      ["My Timeline", "trendingUp", () => navTo("My Timeline", "timeline")],
       ["Documents", "document", () => navTo("Documents", "case", "documents")],
       ["Checklists", "check", () => navTo("Checklists", "case", "recovery")]
+    ]],
+    ["My Network", [
+      ["My Care Team", "heart", () => navTo("My Care Team", "careteam")],
+      ["Explore Network", "globe", () => navTo("Explore Network", "explore")]
     ]],
     ["Support", [
       ["Messages", "message", () => navTo("Messages", "case", "messages")],
@@ -208,18 +217,32 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   ];
 
   const TeleconsultScreen = () => {
-    const slots = [
-      { day: "Mon Mar 31", times: ["09:00", "10:30", "14:00", "15:30"] },
-      { day: "Tue Apr 01", times: ["08:30", "11:00", "13:00", "16:00"] },
-      { day: "Wed Apr 02", times: ["09:30", "12:00", "14:30"] }
-    ];
+    const getSlots = () => {
+      const days = [];
+      const today = new Date();
+      let count = 0;
+      let d = new Date(today);
+      d.setDate(d.getDate() + 1);
+      while (count < 3) {
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) {
+          const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+          const allTimes = [["09:00","10:30","14:00","15:30"],["08:30","11:00","13:00","16:00"],["09:30","12:00","14:30"]];
+          days.push({ day: label, times: allTimes[count] });
+          count++;
+        }
+        d.setDate(d.getDate() + 1);
+      }
+      return days;
+    };
+    const slots = getSlots();
     return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
       React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "Teleconsult Scheduler"),
-      React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Book a secure video call with Dr. Pe\u00f1a or your care coordinator"),
+      React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Book a secure video call with your surgeon or care coordinator"),
       tcBooked ? React.createElement("div", { style: { ...s.card, background: T[50], border: `1px solid ${T[200]}`, textAlign: "center", padding: "40px 28px" } },
         React.createElement("div", { style: { width: 52, height: 52, borderRadius: "50%", background: T[100], border: `2px solid ${T[300]}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" } }, React.createElement(Icon, { name: "check", size: 22, color: T[600] })),
         React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[900], marginBottom: 8 } }, "Appointment confirmed"),
-        React.createElement("p", { style: { fontSize: 14, color: G[500] } }, "Your ", service, " is scheduled for ", React.createElement("strong", { style: { color: G[900] } }, tcSlot), " with Dr. Pe\u00f1a."),
+        React.createElement("p", { style: { fontSize: 14, color: G[500] } }, "Your ", service, " is scheduled for ", React.createElement("strong", { style: { color: G[900] } }, tcSlot), "."),
         React.createElement("button", { onClick: () => { setTcBooked(false); setTcSlot(null); }, style: { ...s.btnGhost, marginTop: 20, fontSize: 12 } }, "Reschedule")
       ) : React.createElement(React.Fragment, null,
         React.createElement("div", { style: { ...s.card, marginBottom: 14 } },
@@ -236,7 +259,15 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     );
   };
 
-  const [profileForm, setProfileForm] = useState({ fn: firstName, ln: lastName, email: (user == null ? void 0 : user.email) || "", phone: "+1 555-0123", country: "United States", lang: "English", emergency: "Jane Doe (+1 555-9876)" });
+  const [profileForm, setProfileForm] = useState({
+    fn: firstName,
+    ln: lastName,
+    email: (user == null ? void 0 : user.email) || "",
+    phone: isDemo ? "+1 555-0123" : "",
+    country: isDemo ? "United States" : "",
+    lang: "English",
+    emergency: isDemo ? "Jane Doe (+1 555-9876)" : ""
+  });
   const [profileSaved, setProfileSaved] = useState(false);
   const ProfileScreen = ({ profileForm, setProfileForm, profileSaved, setProfileSaved, showToast }) => React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto", maxWidth: 700 } },
     React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 12 } }, "My Profile"),
@@ -256,16 +287,26 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       ),
       React.createElement("div", { style: { borderTop: `1px solid ${G[100]}`, paddingTop: 20, marginTop: 6 } },
         React.createElement("div", { style: { ...s.label, marginBottom: 16, marginTop: 20 } }, "Security"),
-        React.createElement("button", { style: s.btnGhost }, "Update password")
+        React.createElement("button", { onClick: () => {
+          const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
+          const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
+          if (!SUPA_URL || SUPA_URL.includes("placeholder")) {
+            showToast("Password reset email sent (demo mode)");
+            return;
+          }
+          const email = profileForm.email || (user && user.email);
+          if (!email) { showToast("No email on file"); return; }
+          fetch(SUPA_URL + "/auth/v1/recover", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: SUPA_KEY },
+            body: JSON.stringify({ email })
+          }).then(() => showToast("Password reset email sent to " + email))
+            .catch(() => showToast("Error sending reset email"));
+        }, style: s.btnGhost }, "Update password")
       ),
       React.createElement("button", { onClick: () => { setProfileSaved(true); showToast("Profile updated successfully"); setTimeout(() => setProfileSaved(false), 3000); }, style: { ...s.btnPrimary, marginTop: 24, width: "100%" } }, "Save changes")
     )
   );
-
-  const PAT_PAYMENTS = [
-    { date: "Mar 20", desc: "Surgery \u2014 Rhinoplasty", amount: "$4,200", status: "Paid", method: "Visa \u00b7\u00b7\u00b74242" },
-    { date: "Apr 20", desc: "Telemedicine Fee", amount: "$75", status: "Pending", method: "\u2014" }
-  ];
 
   const PaymentsScreen = () => {
     const totalPaid = patPayments.filter(p => p.status === "Paid").reduce((acc, p) => acc + (parseFloat(String(p.amount).replace(/[^0-9.]/g, "")) || 0), 0);
@@ -273,36 +314,58 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
       React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "Payments"),
       React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Review your invoices, payment history, and financial schedule"),
-      React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
+      isDemo && React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
         React.createElement("div", { style: s.card }, React.createElement("div", { style: s.label }, "Total paid"), React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: T[700], marginTop: 4 } }, "$" + totalPaid.toLocaleString())),
         React.createElement("div", { style: s.card }, React.createElement("div", { style: s.label }, "Pending balance"), React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: "#92400e", marginTop: 4 } }, "$" + totalPending.toLocaleString())),
-        React.createElement("div", { style: s.card }, React.createElement("div", { style: s.label }, "Saved savings"), React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: G[500], marginTop: 4 } }, "$1,240"))
+        React.createElement("div", { style: s.card }, React.createElement("div", { style: s.label }, "Saved vs. US avg"), React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: G[500], marginTop: 4 } }, "$1,240"))
       ),
       React.createElement("div", { style: s.card },
         React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Transaction history"),
-        React.createElement("div", { className: "table-scroll" },
-          React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13.5 } },
-            React.createElement("thead", null, React.createElement("tr", { style: { textAlign: "left" } }, ["Date", "Description", "Status", "Method", "Amount"].map(h => React.createElement("th", { key: h, style: { fontWeight: 600, color: G[500], padding: "0 0 10px" } }, h)))),
-            React.createElement("tbody", null, patPayments.map((p, i) => React.createElement("tr", { key: i, style: { borderTop: `1px solid ${G[100]}` } },
-              React.createElement("td", { style: { padding: "14px 0", color: G[500] } }, p.date),
-              React.createElement("td", { style: { padding: "14px 0", fontWeight: 500 } }, p.desc),
-              React.createElement("td", { style: { padding: "14px 0" } }, React.createElement("span", { style: { fontSize: 11, padding: "2px 8px", borderRadius: 4, background: p.status === "Paid" ? T[50] : "#fffbeb", color: p.status === "Paid" ? T[700] : "#92400e", border: `1px solid ${p.status === "Paid" ? T[100] : "#fef3c7"}` } }, p.status)),
-              React.createElement("td", { style: { padding: "14px 0", color: G[400] } }, p.method),
-              React.createElement("td", { style: { padding: "14px 0", textAlign: "right", fontWeight: 600 } },
-                "$" + p.amount,
-                p.status === "Pending" && React.createElement("button", { onClick: () => { setSelectedPayment(p); setPayModalOpen(true); }, style: { ...s.btnPrimary, padding: "5px 12px", fontSize: 11, marginLeft: 12 } }, "Pay now")
+        patPayments.length === 0
+          ? React.createElement("div", { style: { textAlign: "center", padding: "40px 20px" } },
+              React.createElement("div", { style: { width: 48, height: 48, borderRadius: "50%", background: G[100], display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" } }, React.createElement(Icon, { name: "creditCard", size: 20, color: G[400] })),
+              React.createElement("p", { style: { fontSize: 13, color: G[500] } }, "No transactions yet. Payments will appear here once your procedure is confirmed.")
+            )
+          : React.createElement("div", { className: "table-scroll" },
+              React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13.5 } },
+                React.createElement("thead", null, React.createElement("tr", { style: { textAlign: "left" } }, ["Date", "Description", "Status", "Method", "Amount"].map(h => React.createElement("th", { key: h, style: { fontWeight: 600, color: G[500], padding: "0 0 10px" } }, h)))),
+                React.createElement("tbody", null, patPayments.map((p, i) => React.createElement("tr", { key: i, style: { borderTop: `1px solid ${G[100]}` } },
+                  React.createElement("td", { style: { padding: "14px 0", color: G[500] } }, p.date),
+                  React.createElement("td", { style: { padding: "14px 0", fontWeight: 500 } }, p.desc),
+                  React.createElement("td", { style: { padding: "14px 0" } }, React.createElement("span", { style: { fontSize: 11, padding: "2px 8px", borderRadius: 4, background: p.status === "Paid" ? T[50] : "#fffbeb", color: p.status === "Paid" ? T[700] : "#92400e", border: `1px solid ${p.status === "Paid" ? T[100] : "#fef3c7"}` } }, p.status)),
+                  React.createElement("td", { style: { padding: "14px 0", color: G[400] } }, p.method),
+                  React.createElement("td", { style: { padding: "14px 0", textAlign: "right", fontWeight: 600 } },
+                    "$" + p.amount,
+                    p.status === "Pending" && React.createElement("button", { onClick: () => { setSelectedPayment(p); setPayModalOpen(true); }, style: { ...s.btnPrimary, padding: "5px 12px", fontSize: 11, marginLeft: 12 } }, "Pay now")
+                  )
+                )))
               )
-            )))
-          )
-        )
+            )
       ),
       React.createElement("div", { style: s.card },
-        React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Payment method on file"),
-        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
-          React.createElement("div", { style: { width: 44, height: 28, borderRadius: 4, background: G[900], display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 } }, "VISA"),
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, "Visa ending in 4242"), React.createElement("div", { style: { fontSize: 11, color: G[400] } }, "Expires 12/26")),
-          React.createElement("button", { style: { ...s.btnGhost, marginLeft: "auto", fontSize: 12, padding: "6px 12px" } }, "Update")
-        )
+        React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Payment method"),
+        isDemo
+          ? React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
+              React.createElement("div", { style: { width: 44, height: 28, borderRadius: 4, background: "#0070BA", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 } }, "PP"),
+              React.createElement("div", null,
+                React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, "PayPal"),
+                React.createElement("div", { style: { fontSize: 11, color: G[400] } }, "demo@praesenti.com")
+              ),
+              React.createElement("span", { style: { ...s.btnGhost, marginLeft: "auto", fontSize: 12, padding: "6px 12px" } }, "Saved")
+            )
+          : React.createElement("div", { style: { textAlign: "center", padding: "32px 20px" } },
+              React.createElement("div", { style: { width: 48, height: 48, borderRadius: "50%", background: G[100], display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" } }, React.createElement(Icon, { name: "creditCard", size: 20, color: G[400] })),
+              React.createElement("p", { style: { fontSize: 13, color: G[500], marginBottom: 16 } }, "No payment method saved yet."),
+              React.createElement("a", {
+                href: "https://www.paypal.com",
+                target: "_blank",
+                rel: "noopener noreferrer",
+                style: { ...s.btnPrimary, fontSize: 13, padding: "10px 24px", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }
+              },
+                React.createElement("div", { style: { width: 20, height: 14, borderRadius: 2, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#0070BA" } }, "PP"),
+                "Add PayPal"
+              )
+            )
       )
     );
   };
@@ -374,12 +437,12 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       React.createElement("div", null,
         React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Care team"),
         React.createElement("div", { style: { ...s.card, display: "flex", gap: 16 } },
-          React.createElement("div", { style: { width: 44, height: 44, borderRadius: "50%", background: T[100], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 17, fontWeight: 700, color: T[700] } }, "JP"),
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, "Dr. Juan Pe\u00f1a"), React.createElement("div", { style: { fontSize: 12, color: G[500], margin: "2px 0 8px" } }, "Lead Surgeon"), React.createElement("button", { onClick: () => navTo("Teleconsult", "teleconsult"), style: { ...s.btnGhost, padding: "4px 10px", fontSize: 11 } }, "Book visit"))
+          React.createElement("div", { style: { width: 44, height: 44, borderRadius: "50%", background: T[100], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 17, fontWeight: 700, color: T[700] } }, "S"),
+          React.createElement("div", null, React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, "Your Surgeon"), React.createElement("div", { style: { fontSize: 12, color: G[500], margin: "2px 0 8px" } }, "Lead Surgeon"), React.createElement("button", { onClick: () => navTo("Teleconsult", "teleconsult"), style: { ...s.btnGhost, padding: "4px 10px", fontSize: 11 } }, "Book visit"))
         ),
         React.createElement("div", { style: { ...s.card, display: "flex", gap: 16 } },
-          React.createElement("div", { style: { width: 44, height: 44, borderRadius: "50%", background: G[100], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 17, fontWeight: 700, color: G[600] } }, "AC"),
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, "Ana Castillo"), React.createElement("div", { style: { fontSize: 12, color: G[500], margin: "2px 0 8px" } }, "Care Coordinator"), React.createElement("button", { onClick: () => navTo("Messages", "case", "messages"), style: { ...s.btnGhost, padding: "4px 10px", fontSize: 11 } }, "Send message"))
+          React.createElement("div", { style: { width: 44, height: 44, borderRadius: "50%", background: G[100], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 17, fontWeight: 700, color: G[600] } }, "C"),
+          React.createElement("div", null, React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, "Your Coordinator"), React.createElement("div", { style: { fontSize: 12, color: G[500], margin: "2px 0 8px" } }, "Care Coordinator"), React.createElement("button", { onClick: () => navTo("Messages", "case", "messages"), style: { ...s.btnGhost, padding: "4px 10px", fontSize: 11 } }, "Send message"))
         )
       )
     )
@@ -394,14 +457,26 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
 
   const CaseDetail = () => React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
     React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 } },
-      React.createElement("div", null, React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "My Case"), React.createElement("p", { style: { color: G[400], fontSize: 13 } }, "Rhinoplasty \u2022 Dr. Juan Pe\u00f1a")),
-      React.createElement("div", { style: { fontSize: 11, padding: "4px 10px", borderRadius: 10, background: T[50], color: T[700], fontWeight: 600, textTransform: "uppercase" } }, "Recovery")
+      React.createElement("div", null,
+        React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "My Case"),
+        React.createElement("p", { style: { color: G[400], fontSize: 13 } }, isDemo ? "Rhinoplasty \u2022 Care Team Assigned" : "Your case details will appear here once confirmed")
+      ),
+      isDemo && React.createElement("div", { style: { fontSize: 11, padding: "4px 10px", borderRadius: 10, background: T[50], color: T[700], fontWeight: 600, textTransform: "uppercase" } }, "Recovery")
     ),
     React.createElement("div", { style: { display: "flex", gap: 24, borderBottom: `1px solid ${G[200]}`, marginBottom: 24 } }, [["journey", "Journey"], ["documents", "Documents"], ["recovery", "Checklist"], ["messages", "Messages"]].map(([k, lbl]) => React.createElement("button", { key: k, onClick: () => setCaseTab(k), style: { padding: "0 4px 12px", fontSize: 14, fontWeight: 500, color: caseTab === k ? T[700] : G[500], borderBottom: `2.5px solid ${caseTab === k ? T[500] : "transparent"}`, background: "none", borderLeft: "none", borderRight: "none", borderTop: "none", cursor: "pointer", transition: "all .2s" } }, lbl))),
     caseTab === "journey" && React.createElement(React.Fragment, null,
       React.createElement("div", { style: { ...s.card, padding: "32px" } },
-        JOURNEY_STEPS.map((st, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 20, marginBottom: i === JOURNEY_STEPS.length - 1 ? 0 : 32, position: "relative" } },
-          i < JOURNEY_STEPS.length - 1 && React.createElement("div", { style: { position: "absolute", left: 10, top: 30, bottom: -30, width: 1, background: G[200] } }),
+        (isDemo ? JOURNEY_STEPS : [
+          { label:"Application submitted",      date:"\u2014", done:false },
+          { label:"Matched with your surgeon",  date:"\u2014", done:false },
+          { label:"Pre-op consultation",        date:"\u2014", done:false },
+          { label:"Surgery day",                date:"\u2014", done:false },
+          { label:"Recovery home check-in",     date:"\u2014", done:false },
+          { label:"7-day follow-up",            date:"\u2014", done:false },
+          { label:"30-day telemedicine",        date:"\u2014", done:false },
+          { label:"Final clearance",            date:"\u2014", done:false }
+        ]).map((st, i, arr) => React.createElement("div", { key: i, style: { display: "flex", gap: 20, marginBottom: i === arr.length - 1 ? 0 : 32, position: "relative" } },
+          i < arr.length - 1 && React.createElement("div", { style: { position: "absolute", left: 10, top: 30, bottom: -30, width: 1, background: G[200] } }),
           React.createElement("div", { style: { width: 22, height: 22, borderRadius: "50%", background: st.done ? T[500] : "#fff", border: `2px solid ${st.done ? T[500] : G[300]}`, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, flexShrink: 0 } }, st.done && React.createElement(Icon, { name: "check", size: 10, color: "#fff" })),
           React.createElement("div", null, React.createElement("div", { style: { fontWeight: 600, fontSize: 14, color: st.done ? G[900] : G[400] } }, st.label), React.createElement("div", { style: { fontSize: 12, color: G[400], marginTop: 2 } }, st.date))
         ))
@@ -412,21 +487,27 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       React.createElement("div", { style: { ...s.card, padding: "24px" } },
         React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Required documents"),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
-          DOCS.map((doc, i) => {
+          (isDemo ? DOCS : [
+            { name: "Passport / Government ID",    size: "", date: "" },
+            { name: "Medical clearance letter",    size: "", date: "" },
+            { name: "Blood work results",          size: "", date: "" },
+            { name: "Consent form",                size: "", date: "" },
+            { name: "Insurance or payment proof",  size: "", date: "" }
+          ]).map((doc, i) => {
             const uploadedDoc = docsList.find(d => d.req_type === doc.name);
             const hasUpload = !!uploadedDoc;
             return React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 14, padding: "14px", border: `1px solid ${hasUpload ? T[100] : G[200]}`, borderRadius: 8, background: hasUpload ? T[50] : "#fff" } },
               React.createElement("div", { style: { width: 38, height: 38, borderRadius: 8, background: hasUpload ? T[100] : G[50], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, React.createElement(Icon, { name: hasUpload ? "check" : "document", size: 18, color: hasUpload ? T[600] : G[500] })),
               React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: G[900] } }, hasUpload ? uploadedDoc.name : doc.name),
-                React.createElement("div", { style: { fontSize: 11, color: hasUpload ? T[600] : G[400], marginTop: 2 } }, hasUpload ? (uploadedDoc.size + " \u00b7 " + (uploadedDoc.created_at ? new Date(uploadedDoc.created_at).toLocaleDateString() : "Just now")) : doc.size + " \u00b7 " + doc.date)
+                React.createElement("div", { style: { fontSize: 11, color: hasUpload ? T[600] : G[400], marginTop: 2 } }, hasUpload ? (uploadedDoc.size + " \u00b7 " + (uploadedDoc.created_at ? new Date(uploadedDoc.created_at).toLocaleDateString() : "Just now")) : (doc.size ? doc.size + " \u00b7 " + doc.date : "Pending upload"))
               ),
-              hasUpload 
+              hasUpload
                 ? React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } },
                     React.createElement("a", { href: uploadedDoc.url, target: "_blank", rel: "noopener noreferrer", style: { ...s.btnGhost, fontSize: 11, padding: "6px 12px", textDecoration: "none" } }, "View"),
-                    React.createElement("button", { onClick: () => handleDeleteDoc(uploadedDoc), title: "Delete document", style: { background: "#fff1f1", border: "1px solid #fee2e2", cursor: "pointer", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s" } }, React.createElement(Icon, { name: "close", size: 10, color: "#ef4444" }))
+                    React.createElement("button", { onClick: () => handleDeleteDoc(uploadedDoc), title: "Delete document", style: { background: "#fff1f1", border: "1px solid #fee2e2", cursor: "pointer", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" } }, React.createElement(Icon, { name: "close", size: 10, color: "#ef4444" }))
                   )
-                : React.createElement("button", { onClick: () => { setTargetReqType(doc.name); if (fileInputRef.current) fileInputRef.current.click(); }, style: { ...s.btnPrimary, fontSize: 11, padding: "6px 12px", background: G[600] } }, "Select")
+                : React.createElement("button", { onClick: () => { setTargetReqType(doc.name); if (fileInputRef.current) fileInputRef.current.click(); }, style: { ...s.btnPrimary, fontSize: 11, padding: "6px 12px", background: G[600] } }, "Upload")
             );
           })
         )
@@ -437,7 +518,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, 
           docsList.slice(DOCS.length).map((d, i) => React.createElement("div", { key: d.id || i, style: { display: "flex", alignItems: "center", gap: 14, padding: "12px", background: G[50], borderRadius: 8 } },
             React.createElement("div", { style: { width: 32, height: 32, borderRadius: 6, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, React.createElement(Icon, { name: "document", size: 16, color: G[500] })),
-            React.createElement("div", { style: { flex: 1, minWidth: 0 } }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, d.name), React.createElement("div", { style: { fontSize: 10, color: G[400], marginTop: 2 } }, d.size + " · " + (d.created_at ? new Date(d.created_at).toLocaleDateString() : "Just now"))),
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, d.name), React.createElement("div", { style: { fontSize: 10, color: G[400], marginTop: 2 } }, d.size + " \u00b7 " + (d.created_at ? new Date(d.created_at).toLocaleDateString() : "Just now"))),
             React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } },
               React.createElement("a", { href: d.url, target: "_blank", rel: "noopener noreferrer", style: { color: T[500], fontSize: 11, fontWeight: 600, textDecoration: "none" } }, "View"),
               React.createElement("button", { onClick: () => handleDeleteDoc(d), title: "Delete document", style: { background: "#fff1f1", border: "1px solid #fee2e2", cursor: "pointer", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" } }, React.createElement(Icon, { name: "close", size: 10, color: "#ef4444" }))
@@ -459,18 +540,596 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     ),
 
     caseTab === "messages" && React.createElement("div", { style: { ...s.card, padding: 0, height: 500, display: "flex", flexDirection: "column", overflow: "hidden" } },
-      React.createElement("div", { ref: msgBodyRef, style: { flex: 1, padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14, background: G[50] } },
-        msgs.map((m, i) => React.createElement("div", { key: i, style: { alignSelf: m.side === "me" ? "flex-end" : "flex-start", maxWidth: "80%" } },
-          React.createElement("div", { style: { padding: "10px 14px", borderRadius: 12, background: m.side === "me" ? T[500] : "#fff", color: m.side === "me" ? "#fff" : G[900], fontSize: 13.5, lineHeight: 1.5, border: m.side === "me" ? "none" : `1px solid ${G[200]}`, boxShadow: m.side === "me" ? "none" : "0 1px 3px rgba(0,0,0,.05)" } }, m.text),
-          React.createElement("div", { style: { fontSize: 10, color: G[400], marginTop: 4, textAlign: m.side === "me" ? "right" : "left" } }, m.time)
-        ))
-      ),
-      React.createElement("div", { style: { padding: 16, borderTop: `1px solid ${G[200]}`, background: "#fff", display: "flex", gap: 10 } },
-        React.createElement("input", { value: msgInput, onChange: e => setMsgInput(e.target.value), onKeyDown: e => e.key === "Enter" && sendMsg(), placeholder: "Type your message...", style: { flex: 1, height: 42, border: `1px solid ${G[200]}`, borderRadius: 8, padding: "0 14px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } }),
-        React.createElement("button", { onClick: sendMsg, style: { ...s.btnPrimary, padding: "0 20px" } }, "Send")
-      )
+      !isDemo && msgs.length === 0
+        ? React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" } },
+            React.createElement("div", { style: { width: 52, height: 52, borderRadius: "50%", background: G[100], display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 } }, React.createElement(Icon, { name: "message", size: 22, color: G[400] })),
+            React.createElement("h3", { style: { fontSize: 15, fontWeight: 600, color: G[900], marginBottom: 6 } }, "No messages yet"),
+            React.createElement("p", { style: { fontSize: 13, color: G[500], lineHeight: 1.6 } }, "Once a coordinator is assigned to your case, your conversation will appear here.")
+          )
+        : React.createElement(React.Fragment, null,
+            React.createElement("div", { ref: msgBodyRef, style: { flex: 1, padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14, background: G[50] } },
+              msgs.map((m, i) => React.createElement("div", { key: i, style: { alignSelf: m.side === "me" ? "flex-end" : "flex-start", maxWidth: "80%" } },
+                React.createElement("div", { style: { padding: "10px 14px", borderRadius: 12, background: m.side === "me" ? T[500] : "#fff", color: m.side === "me" ? "#fff" : G[900], fontSize: 13.5, lineHeight: 1.5, border: m.side === "me" ? "none" : `1px solid ${G[200]}`, boxShadow: m.side === "me" ? "none" : "0 1px 3px rgba(0,0,0,.05)" } }, m.text),
+                React.createElement("div", { style: { fontSize: 10, color: G[400], marginTop: 4, textAlign: m.side === "me" ? "right" : "left" } }, m.time)
+              ))
+            ),
+            React.createElement("div", { style: { padding: 16, borderTop: `1px solid ${G[200]}`, background: "#fff", display: "flex", gap: 10 } },
+              React.createElement("input", { value: msgInput, onChange: e => setMsgInput(e.target.value), onKeyDown: e => e.key === "Enter" && sendMsg(), placeholder: "Type your message...", style: { flex: 1, height: 42, border: `1px solid ${G[200]}`, borderRadius: 8, padding: "0 14px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } }),
+              React.createElement("button", { onClick: sendMsg, style: { ...s.btnPrimary, padding: "0 20px" } }, "Send")
+            )
+          )
     )
   );
+
+
+  // \u2500\u2500 ONBOARDING GUIADO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  const OnboardingScreen = () => {
+    const [step, setStep] = useState(1);
+    const [form, setForm] = useState({ country:"", phone:"", lang:"English" });
+    const [proc, setProc] = useState("");
+    const [budget, setBudget] = useState(5000);
+    const [slot, setSlot] = useState(null);
+    const [done, setDone] = useState(false);
+    const set = k => e => setForm(f=>({...f,[k]:e.target.value}));
+    const PROCS = ["Rhinoplasty","Breast Augmentation","Liposuction","Tummy Tuck","Hair Transplant","Dental Veneers","Bariatric Surgery","Eye Surgery","Other"];
+    const SLOTS = [
+      { day:"Mon Apr 14", times:["09:00","10:30","14:00","15:30"] },
+      { day:"Tue Apr 15", times:["08:30","11:00","13:00","16:00"] },
+      { day:"Wed Apr 16", times:["09:30","12:00","14:30"] }
+    ];
+    const pct = Math.round((step/3)*100);
+    const Inp = ({ val, onChange, ph, type="text" }) => React.createElement("input", { type, value:val, onChange, placeholder:ph, style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900] } });
+    const Lbl = ({ t }) => React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, t);
+    if(done) return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, display:"flex", alignItems:"center", justifyContent:"center" } },
+      React.createElement("div", { style:{ textAlign:"center", maxWidth:420 } },
+        React.createElement("div", { style:{ width:72, height:72, borderRadius:"50%", background:T[50], border:`3px solid ${T[200]}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 24px" } }, React.createElement(Icon, { name:"leaf", size:32, color:T[600] })),
+        React.createElement("h1", { style:{ fontFamily:serif, fontSize:30, color:T[950], marginBottom:10 } }, "You're all set!"),
+        React.createElement("p", { style:{ fontSize:14, color:G[500], lineHeight:1.8, marginBottom:24 } }, slot ? `Your intro call is confirmed for ${slot}.` : "A coordinator will reach out within 24 hours."),
+        React.createElement("div", { style:{ ...s.card, background:T[950], border:"none", marginBottom:20, textAlign:"left" } },
+          React.createElement("div", { style:{ fontSize:11, color:"rgba(255,255,255,.3)", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:14 } }, "Your application"),
+          [["Procedure",proc||"\u2014"],["Budget","$"+budget.toLocaleString()],["Country",form.country||"\u2014"],["Language",form.lang]].map(([l,v])=>
+            React.createElement("div", { key:l, style:{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid rgba(255,255,255,.07)", fontSize:13 } }, React.createElement("span",{style:{color:"rgba(255,255,255,.4)"}},l), React.createElement("span",{style:{color:"rgba(255,255,255,.85)",fontWeight:500}},v))
+          )
+        ),
+        React.createElement("button", { onClick:()=>navTo("Overview","overview"), style:{ ...s.btnPrimary, padding:"12px 36px", fontSize:14 } }, "Go to my dashboard")
+      )
+    );
+    return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto", maxWidth:600, margin:"0 auto" } },
+      React.createElement("div", { style:{ marginBottom:32 } },
+        React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:8 } },
+          React.createElement("span", { style:{ fontSize:12, fontWeight:600, color:T[500], textTransform:"uppercase", letterSpacing:"0.1em" } }, "Step "+step+" of 3"),
+          React.createElement("span", { style:{ fontSize:11, color:G[400] } }, ["","Takes 1 minute","No commitment","Free \u00b7 30 min"][step])
+        ),
+        React.createElement("div", { style:{ height:4, background:G[100], borderRadius:2, overflow:"hidden" } },
+          React.createElement("div", { style:{ height:"100%", width:pct+"%", background:T[500], borderRadius:2, transition:"width .4s" } })
+        )
+      ),
+      step===1 && React.createElement("div", null,
+        React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "Welcome, "+firstName+"!"),
+        React.createElement("p", { style:{ fontSize:14, color:G[500], marginBottom:28, lineHeight:1.7 } }, "Let us finish setting up your profile so your coordinator has everything they need."),
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Country of residence" }), React.createElement(Inp, { val:form.country, onChange:set("country"), ph:"E.g. United States" })),
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Phone number" }), React.createElement(Inp, { val:form.phone, onChange:set("phone"), ph:"+1 555 000 0000", type:"tel" })),
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Preferred language" }), React.createElement("select", { value:form.lang, onChange:set("lang"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } }, ["English","Spanish","Portuguese","French","Italian"].map(l=>React.createElement("option",{key:l,value:l},l)))),
+        React.createElement("div", { style:{ display:"flex", justifyContent:"flex-end", marginTop:28 } }, React.createElement("button", { onClick:()=>setStep(2), style:{ ...s.btnPrimary, padding:"11px 32px", fontSize:13 } }, "Continue \u2192"))
+      ),
+      step===2 && React.createElement("div", null,
+        React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "What are you looking for?"),
+        React.createElement("p", { style:{ fontSize:14, color:G[500], marginBottom:24, lineHeight:1.7 } }, "This helps us match you with the right surgeon."),
+        React.createElement("div", { style:{ marginBottom:22 } },
+          React.createElement(Lbl, { t:"Procedure of interest" }),
+          React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:8 } },
+            PROCS.map(p=>React.createElement("button", { key:p, onClick:()=>setProc(p), style:{ padding:"10px 14px", borderRadius:8, border:`1.5px solid ${proc===p?T[500]:G[200]}`, background:proc===p?T[50]:"#fff", color:proc===p?T[700]:G[700], fontSize:13, cursor:"pointer", fontFamily:sans, textAlign:"left" } }, p))
+          )
+        ),
+        React.createElement("div", { style:{ marginBottom:28 } },
+          React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:8 } }, React.createElement(Lbl,{t:"Approximate budget"}), React.createElement("span",{style:{fontSize:14,fontWeight:600,color:T[600]}},"$"+budget.toLocaleString())),
+          React.createElement("input", { type:"range", min:1000, max:30000, step:500, value:budget, onChange:e=>setBudget(Number(e.target.value)), style:{ width:"100%", height:4, borderRadius:2, outline:"none", cursor:"pointer", border:"none", WebkitAppearance:"none", appearance:"none", background:`linear-gradient(90deg,${T[500]} ${(((budget-1000)/29000)*100)}%,${G[200]} ${(((budget-1000)/29000)*100)}%)` } }),
+          React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", fontSize:11, color:G[400], marginTop:4 } }, React.createElement("span",null,"$1,000"), React.createElement("span",null,"$30,000+"))
+        ),
+        React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginTop:28 } },
+          React.createElement("button", { onClick:()=>setStep(1), style:{ ...s.btnGhost, padding:"11px 24px", fontSize:13 } }, "\u2190 Back"),
+          React.createElement("button", { onClick:()=>setStep(3), style:{ ...s.btnPrimary, padding:"11px 32px", fontSize:13 } }, "Continue \u2192")
+        )
+      ),
+      step===3 && React.createElement("div", null,
+        React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "Book your intro call"),
+        React.createElement("p", { style:{ fontSize:14, color:G[500], marginBottom:24, lineHeight:1.7 } }, "A free 30-minute call with a Praesenti coordinator."),
+        React.createElement("div", { style:{ ...s.card, marginBottom:16 } },
+          SLOTS.map(({ day, times }) => React.createElement("div", { key:day, style:{ marginBottom:18 } },
+            React.createElement("div", { style:{ fontSize:12, fontWeight:600, color:G[700], marginBottom:8 } }, day),
+            React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:8 } },
+              times.map(t=>React.createElement("button", { key:t, onClick:()=>setSlot(day+" \u00b7 "+t), style:{ padding:"8px 18px", borderRadius:7, border:`1.5px solid ${slot===day+" \u00b7 "+t?T[500]:G[200]}`, background:slot===day+" \u00b7 "+t?T[50]:"#fff", color:slot===day+" \u00b7 "+t?T[700]:G[700], fontSize:13, cursor:"pointer", fontFamily:sans } }, t))
+            )
+          ))
+        ),
+        React.createElement("p", { style:{ fontSize:12, color:G[400], textAlign:"center", marginBottom:20 } }, "Don\u2019t want to book now? You can schedule later from your dashboard."),
+        React.createElement("div", { style:{ display:"flex", justifyContent:"space-between" } },
+          React.createElement("button", { onClick:()=>setStep(2), style:{ ...s.btnGhost, padding:"11px 24px", fontSize:13 } }, "\u2190 Back"),
+          React.createElement("div", { style:{ display:"flex", gap:10 } },
+            React.createElement("button", { onClick:()=>setDone(true), style:{ ...s.btnGhost, padding:"11px 20px", fontSize:13 } }, "Skip"),
+            React.createElement("button", { onClick:()=>{ if(slot)setDone(true); else showToast("Please select a time slot"); }, style:{ ...s.btnPrimary, padding:"11px 28px", fontSize:13 } }, "Confirm call")
+          )
+        )
+      )
+    );
+  };
+
+  // \u2500\u2500 LIVE TIMELINE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  const LiveTimelineScreen = () => {
+    const [expanded, setExpanded] = useState(null);
+    const DEMO_STAGES = [
+      { label:"Initial consultation",          date:"Feb 28", status:"done",    responsible:"Praesenti",    detail:"We received your application and confirmed your procedure of interest and budget.", icon:"clipboard" },
+      { label:"Medical evaluation",            date:"Mar 02", status:"done",    responsible:"Medical team", detail:"Your case was reviewed. You were confirmed as a good candidate and your surgeon was selected.", icon:"stethoscope" },
+      { label:"Confirmation & documentation",  date:"Mar 14", status:"done",    responsible:"Coordinator",  detail:"Consent forms signed. Pre-operative instructions delivered. Surgery date confirmed.", icon:"document" },
+      { label:"Surgery day",                   date:"Mar 20", status:"done",    responsible:"Surgical team",detail:"Procedure completed without complications. Post-operative report filed.", icon:"heart" },
+      { label:"Recovery home check-in",        date:"Mar 22", status:"done",    responsible:"Recovery Home",detail:"Transferred to your recovery home. Nursing staff performed initial recovery assessment.", icon:"home" },
+      { label:"7-day follow-up",               date:"Mar 27", status:"current", responsible:"Dr. Vargas",   detail:"Post-operative review at 7 days via teleconsult. Wound status and recovery plan adherence will be assessed.", icon:"video" },
+      { label:"30-day telemedicine",           date:"Apr 20", status:"pending", responsible:"Dr. Vargas",   detail:"30-day follow-up consultation. Discharge decision based on your evolution.", icon:"activity" },
+      { label:"Discharge & case closure",      date:"May 10", status:"pending", responsible:"Coordinator",  detail:"Final outcome evaluation. Medical discharge certificate issued and case file completed.", icon:"check" }
+    ];
+    const NEW_STAGES = [
+      { label:"Initial consultation",          date:"\u2014", status:"pending", responsible:"Praesenti",    detail:"We will contact you to confirm your procedure of interest and budget.", icon:"clipboard" },
+      { label:"Medical evaluation",            date:"\u2014", status:"pending", responsible:"Medical team", detail:"Your case will be reviewed by our medical team.", icon:"stethoscope" },
+      { label:"Confirmation & documentation",  date:"\u2014", status:"pending", responsible:"Coordinator",  detail:"Consent forms, pre-operative instructions and surgery date.", icon:"document" },
+      { label:"Surgery day",                   date:"\u2014", status:"pending", responsible:"Surgical team",detail:"Your procedure will be performed by your assigned surgeon.", icon:"heart" },
+      { label:"Recovery home check-in",        date:"\u2014", status:"pending", responsible:"Recovery Home",detail:"Transfer to your recovery home with nursing staff support.", icon:"home" },
+      { label:"7-day follow-up",               date:"\u2014", status:"pending", responsible:"Your surgeon", detail:"Post-operative review via teleconsult at 7 days.", icon:"video" },
+      { label:"30-day telemedicine",           date:"\u2014", status:"pending", responsible:"Your surgeon", detail:"30-day follow-up consultation and discharge decision.", icon:"activity" },
+      { label:"Discharge & case closure",      date:"\u2014", status:"pending", responsible:"Coordinator",  detail:"Final outcome evaluation and medical discharge certificate.", icon:"check" }
+    ];
+    const stages = isDemo ? DEMO_STAGES : NEW_STAGES;
+    const doneCount = stages.filter(st=>st.status==="done").length;
+    const currentIdx = stages.findIndex(st=>st.status==="current");
+    const pct = Math.round((doneCount/stages.length)*100);
+    const pillBg  = st => ({done:T[50], current:"#fef3c7", pending:G[100]})[st];
+    const pillClr = st => ({done:T[700], current:"#92400e", pending:G[500]})[st];
+    const pillBrd = st => ({done:T[100], current:"#fde68a", pending:G[200]})[st];
+    const pillLbl = st => ({done:"Complete", current:"In progress", pending:"Pending"})[st];
+    return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } },
+      React.createElement("h1", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:4 } }, "My Journey"),
+      React.createElement("p", { style:{ color:G[400], fontSize:13, marginBottom:24 } }, "Track every stage of your medical journey with Praesenti"),
+      React.createElement("div", { style:{ ...s.card, background:T[950], border:"none", marginBottom:24 } },
+        React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 } },
+          React.createElement("div", null,
+            React.createElement("div", { style:{ fontSize:11, color:"rgba(255,255,255,.35)", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:4 } }, "Overall progress"),
+            React.createElement("div", { style:{ fontFamily:serif, fontSize:22, color:"#fff" } }, doneCount+" of "+stages.length+" stages complete")
+          ),
+          React.createElement("div", { style:{ textAlign:"right" } },
+            React.createElement("div", { style:{ fontFamily:serif, fontSize:34, fontWeight:600, color:T[400] } }, pct+"%"),
+            currentIdx>=0 && React.createElement("div", { style:{ fontSize:11, color:"rgba(255,255,255,.35)", marginTop:2 } }, "Currently: "+stages[currentIdx].label)
+          )
+        ),
+        React.createElement("div", { style:{ height:6, background:"rgba(255,255,255,.1)", borderRadius:3, overflow:"hidden" } },
+          React.createElement("div", { style:{ height:"100%", width:pct+"%", background:T[400], borderRadius:3, transition:"width .4s" } })
+        ),
+        React.createElement("div", { style:{ display:"flex", gap:4, marginTop:10 } },
+          stages.map((st,i)=>React.createElement("div",{key:i,style:{flex:1,height:3,borderRadius:2,background:st.status==="done"?T[400]:st.status==="current"?"rgba(77,208,200,.5)":"rgba(255,255,255,.1)"}}))
+        )
+      ),
+      React.createElement("div", { style:{ position:"relative" } },
+        React.createElement("div", { style:{ position:"absolute", left:19, top:10, bottom:10, width:2, background:G[100], zIndex:0 } }),
+        stages.map((st,i)=>React.createElement("div", { key:i, style:{ position:"relative", zIndex:1, display:"flex", gap:18, marginBottom:10 } },
+          React.createElement("div", { style:{ width:40, height:40, borderRadius:"50%", background:st.status==="done"?T[500]:st.status==="current"?T[50]:"#fff", border:`2px solid ${st.status==="done"?T[500]:st.status==="current"?T[400]:G[200]}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:4 } },
+            st.status==="done" ? React.createElement(Icon,{name:"check",size:16,color:"#fff"}) : st.status==="current" ? React.createElement(Icon,{name:st.icon,size:16,color:T[600]}) : React.createElement("div",{style:{width:10,height:10,borderRadius:"50%",background:G[300]}})
+          ),
+          React.createElement("div", { style:{ flex:1, ...s.card, marginBottom:0, cursor:"pointer", opacity:st.status==="pending"?.65:1 }, onClick:()=>setExpanded(e=>e===i?null:i), onMouseEnter:e=>{ if(st.status!=="pending")e.currentTarget.style.borderColor=T[300]; }, onMouseLeave:e=>e.currentTarget.style.borderColor=G[200] },
+            React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center" } },
+              React.createElement("div", { style:{ display:"flex", alignItems:"center", gap:10 } },
+                React.createElement("div", { style:{ fontSize:14, fontWeight:500, color:G[900] } }, st.label),
+                React.createElement("span", { style:{ fontSize:11, padding:"2px 9px", borderRadius:10, fontWeight:500, background:pillBg(st.status), color:pillClr(st.status), border:`1px solid ${pillBrd(st.status)}` } }, pillLbl(st.status))
+              ),
+              React.createElement("div", { style:{ display:"flex", alignItems:"center", gap:12 } },
+                React.createElement("span", { style:{ fontSize:12, color:G[400] } }, st.date),
+                React.createElement("span", { style:{ fontSize:16, color:G[400], display:"inline-block", transition:"transform .2s", transform:expanded===i?"rotate(180deg)":"none" } }, "\u25be")
+              )
+            ),
+            expanded===i && React.createElement("div", { style:{ marginTop:14, paddingTop:14, borderTop:`1px solid ${G[100]}` } },
+              React.createElement("div", { style:{ display:"flex", gap:8, marginBottom:10, alignItems:"center" } }, React.createElement(Icon,{name:"person",size:13,color:G[400]}), React.createElement("span",{style:{fontSize:12,color:G[500]}},"Responsible: "+st.responsible)),
+              React.createElement("p", { style:{ fontSize:13.5, color:G[600], lineHeight:1.75 } }, st.detail),
+              st.status==="current" && React.createElement("button", { onClick:e=>{ e.stopPropagation(); navTo("Teleconsult","teleconsult"); }, style:{ ...s.btnPrimary, marginTop:14, fontSize:12, padding:"8px 18px" } }, "Book follow-up")
+            )
+          )
+        ))
+      )
+    );
+  };
+
+  // ── DEMO care team data ───────────────────────────────────────────────
+  const DEMO_CARE_TEAM = {
+    surgeon: { name:"Dr. Marcus Varela", specialty:"Plastic & Reconstructive Surgery", clinic:"Bella Forma Clinic", phone:"+1 809 555 0101", email:"varela@bellaforma.com", license:"MED-2019-04", experience:9, langs:"Spanish, English", bio:"Board-certified plastic surgeon with 9 years of experience in aesthetic procedures. Trained in Miami and Santo Domingo.", rating:"4.9", cases:41 },
+    coordinator: { name:"Sofia Reyes", role:"Care Coordinator", phone:"+1 809 555 0202", email:"sofia@praesenti.com", langs:"Spanish, English, French" },
+    clinic: { name:"Bella Forma Clinic", address:"Av. Abraham Lincoln 705, Piantini", city:"Santo Domingo", phone:"+1 809 555 0300", email:"info@bellaforma.com", specialties:"Plastic Surgery, Aesthetics", langs:"Spanish, English, Portuguese, French" },
+    home: { name:"Villa Serena", address:"Piantini, Santo Domingo", rate:"$280/night", amenities:"Pool \u00b7 Private nurse \u00b7 Chef \u00b7 AC \u00b7 WiFi", phone:"+1 809 555 1001", email:"info@villaserena.com" }
+  };
+
+  const DEMO_NETWORK = {
+    doctors: [
+      { name:"Dr. Marcus Varela",    specialty:"Plastic & Reconstructive", clinic:"Bella Forma Clinic",  rating:"4.9", cases:41, langs:"ES, EN",         license:"MED-2019-04", experience:9,  bio:"Board-certified plastic surgeon with 9 years of experience.",           phone:"+1 809 555 0101", email:"varela@bellaforma.com" },
+      { name:"Dr. Carlos Romero",    specialty:"Bariatric Surgery",         clinic:"Centro Medico",       rating:"4.8", cases:22, langs:"ES, EN, PT",     license:"MED-2017-11", experience:11, bio:"Specialist in minimally invasive bariatric procedures.",               phone:"+1 809 555 0202", email:"romero@centromedico.com" },
+      { name:"Dr. Ivan Castillo",    specialty:"Hair Restoration",          clinic:"Clinica del Sol",     rating:"5.0", cases:30, langs:"ES, EN",         license:"MED-2020-07", experience:7,  bio:"Pioneer of FUE technique in the Dominican Republic.",                  phone:"+1 809 555 0303", email:"castillo@clinicasol.com" },
+      { name:"Dr. Ramon Herrera",    specialty:"Dental & Maxillofacial",    clinic:"DentalPro",           rating:"4.9", cases:44, langs:"ES, EN, FR",     license:"MED-2015-03", experience:13, bio:"15 years serving international patients in oral surgery.",             phone:"+1 809 555 0404", email:"herrera@dentalpro.com" }
+    ],
+    clinics: [
+      { name:"Bella Forma Clinic",   address:"Av. Abraham Lincoln 705, Piantini, SD",   specialties:"Plastic Surgery, Aesthetics",  langs:"ES, EN, PT, FR", phone:"+1 809 555 0300", email:"info@bellaforma.com" },
+      { name:"Centro Medico",        address:"Av. Independencia 201, Gazcue, SD",       specialties:"Bariatric, General Surgery",   langs:"ES, EN, PT",     phone:"+1 809 555 0400", email:"info@centromedico.com" },
+      { name:"Clinica del Sol",      address:"Calle El Sol 12, Punta Cana",             specialties:"Hair Restoration, Aesthetics", langs:"ES, EN",         phone:"+1 809 555 0500", email:"info@clinicasol.com" },
+      { name:"DentalPro",            address:"Av. 27 de Febrero 305, Naco, SD",         specialties:"Dental, Maxillofacial",        langs:"ES, EN, FR",     phone:"+1 809 555 0600", email:"info@dentalpro.com" }
+    ],
+    homes: [
+      { name:"Villa Serena",         address:"Piantini, Santo Domingo",   rate:"$280/night", amenities:"Pool, Private nurse, Chef, AC, WiFi",       phone:"+1 809 555 1001", email:"info@villaserena.com",   beds:4, available:2 },
+      { name:"Casa Brisa",           address:"Naco, Santo Domingo",       rate:"$220/night", amenities:"Pool, AC, On-call nurse, WiFi",              phone:"+1 809 555 1002", email:"info@casabrisa.com",     beds:6, available:2 },
+      { name:"Punta Suites",         address:"Punta Cana",                rate:"$350/night", amenities:"Medical staff 24/7, Full board, Transport",  phone:"+1 809 555 1003", email:"info@puntasuites.com",   beds:8, available:5 },
+      { name:"Residencial Sol",      address:"Gazcue, Santo Domingo",     rate:"$160/night", amenities:"Shared cook, Transport, AC, WiFi",           phone:"+1 809 555 1004", email:"info@residencialsol.com",beds:3, available:2 }
+    ]
+  };
+
+  // ── fetch real network from Supabase ───────────────────────────────────
+  const [networkData, setNetworkData] = React.useState(null);
+  const [networkLoading, setNetworkLoading] = React.useState(false);
+
+  const fetchNetwork = async () => {
+    if (isDemo) return;
+    const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
+    const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
+    if (!SUPA_URL || SUPA_URL.includes("placeholder")) return;
+    setNetworkLoading(true);
+    try {
+      const [docsRes, clinicsRes, homesRes] = await Promise.all([
+        fetch(`${SUPA_URL}/rest/v1/doctores?select=*&status=eq.active`, { headers:{ apikey:SUPA_KEY, Authorization:"Bearer "+SUPA_KEY } }).then(r=>r.json()),
+        fetch(`${SUPA_URL}/rest/v1/clinicas?select=*&status=eq.active`, { headers:{ apikey:SUPA_KEY, Authorization:"Bearer "+SUPA_KEY } }).then(r=>r.json()),
+        fetch(`${SUPA_URL}/rest/v1/recovery_homes?select=*`, { headers:{ apikey:SUPA_KEY, Authorization:"Bearer "+SUPA_KEY } }).then(r=>r.json())
+      ]);
+      setNetworkData({
+        doctors: Array.isArray(docsRes) ? docsRes : [],
+        clinics: Array.isArray(clinicsRes) ? clinicsRes : [],
+        homes: Array.isArray(homesRes) ? homesRes : []
+      });
+    } catch(e) { console.error("fetchNetwork error:", e); }
+    setNetworkLoading(false);
+  };
+
+  React.useEffect(() => { if (screen === "explore" && !isDemo) fetchNetwork(); }, [screen]);
+
+  // ── detail view state ──────────────────────────────────────────────────
+  const [selectedNetworkItem, setSelectedNetworkItem] = React.useState(null);
+  const [networkDetailType, setNetworkDetailType] = React.useState(null); // 'doctor'|'clinic'|'home'
+  const [exploreTab, setExploreTab] = React.useState("doctors");
+
+  const openDetail = (item, type) => { setSelectedNetworkItem(item); setNetworkDetailType(type); };
+  const closeDetail = () => { setSelectedNetworkItem(null); setNetworkDetailType(null); };
+
+  // ── Hero banner reused by detail screens ──────────────────────────────
+  const DetailHero = ({ title, subtitle, tag, initials, onBack, backLabel }) =>
+    React.createElement("div", { style:{ background:T[950], padding:"32px 40px 0", position:"relative", overflow:"hidden" } },
+      React.createElement("div", { style:{ position:"absolute", inset:0, backgroundImage:"radial-gradient(circle at 1px 1px,rgba(255,255,255,.03) 1px,transparent 0)", backgroundSize:"32px 32px" } }),
+      React.createElement("div", { style:{ position:"relative", zIndex:1 } },
+        React.createElement("button", { onClick:onBack, style:{ ...s.btnGhost, fontSize:12, padding:"7px 14px", display:"flex", alignItems:"center", gap:6, marginBottom:24, background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.12)", color:"rgba(255,255,255,.7)" } },
+          React.createElement(Icon, { name:"arrowLeft", size:13, color:"rgba(255,255,255,.7)" }), backLabel || "Back"
+        ),
+        React.createElement("div", { style:{ display:"flex", gap:24, alignItems:"flex-end", paddingBottom:32 } },
+          React.createElement("div", { style:{ width:100, height:100, borderRadius:"50%", background:T[700], border:"3px solid rgba(255,255,255,.15)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 } },
+            React.createElement("div", { style:{ fontFamily:serif, fontSize:32, fontWeight:600, color:T[200] } }, initials),
+            React.createElement("div", { style:{ fontSize:10, color:"rgba(255,255,255,.3)", marginTop:2 } }, "Photo")
+          ),
+          React.createElement("div", { style:{ flex:1, paddingBottom:4 } },
+            React.createElement("div", { style:{ fontSize:11, fontWeight:600, letterSpacing:"0.12em", textTransform:"uppercase", color:T[300], marginBottom:6 } }, tag),
+            React.createElement("h1", { style:{ fontFamily:serif, fontSize:30, fontWeight:600, color:"#fff", marginBottom:6 } }, title),
+            subtitle && React.createElement("div", { style:{ fontSize:14, color:"rgba(255,255,255,.5)" } }, subtitle)
+          )
+        )
+      )
+    );
+
+  // ── Doctor detail ──────────────────────────────────────────────────────
+  const DoctorDetailScreen = ({ doc, onBack }) => {
+    const name    = doc.name || "";
+    const spec    = doc.specialty || "";
+    const subspec = doc.subspecialty || "";
+    const lic     = doc.license || "";
+    const exp     = doc.experience_years || doc.experience || "";
+    const langs   = Array.isArray(doc.languages) ? doc.languages.join(", ") : (doc.langs||"");
+    const procs   = Array.isArray(doc.procedures) ? doc.procedures : [];
+    const bio     = doc.bio || "";
+    const phone   = doc.phone || "";
+    const email   = doc.email || "";
+    const clinic  = Array.isArray(doc.clinics) ? doc.clinics.join(", ") : (doc.clinic||"");
+    const rating  = doc.rating || "";
+    const cases   = doc.total_cases || doc.cases || "";
+    const initials = name.split(" ").filter(w=>w[0]>="A"&&w[0]<="Z").slice(0,2).map(w=>w[0]).join("");
+    return React.createElement("div", { className:"dash-screen", style:{ flex:1, overflowY:"auto" } },
+      React.createElement(DetailHero, { title:name, subtitle:spec+(subspec?" \u00b7 "+subspec:""), tag:"Surgeon", initials, onBack, backLabel:"Explore Network" }),
+      React.createElement("div", { style:{ padding:"32px 40px", maxWidth:860 } },
+        React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:28 } },
+          [["Rating", rating+" \u2605"], ["Cases", cases+" total"], ["Experience", exp+" years"], ["License", lic]].map(([k,v]) =>
+            React.createElement("div", { key:k, style:{ ...s.card, marginBottom:0 } }, React.createElement("div",{style:s.label},k), React.createElement("div",{style:{fontSize:13,fontWeight:500,color:G[900],marginTop:6}},v))
+          )
+        ),
+        React.createElement("div", { style:{ ...s.card, marginBottom:20 } },
+          React.createElement("div",{style:{...s.label,marginBottom:8}},"About"),
+          React.createElement("p",{style:{fontSize:14,color:G[600],lineHeight:1.8}},bio),
+          React.createElement("div",{style:{marginTop:12,fontSize:13,color:G[600]}},[["Languages",langs],["Clinic",clinic]].map(([k,v])=>v&&React.createElement("span",{key:k,style:{marginRight:20}},React.createElement("span",{style:{color:G[400]}},(k+": ")),v)))
+        ),
+        procs.length > 0 && React.createElement("div", { style:{ ...s.card, marginBottom:20 } },
+          React.createElement("div",{style:{...s.label,marginBottom:14}},"Procedures"),
+          React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
+            procs.map((p,i)=>React.createElement("span",{key:i,style:{fontSize:12,padding:"4px 12px",borderRadius:20,background:T[50],color:T[700],border:`1px solid ${T[100]}`}},p))
+          )
+        ),
+        React.createElement("div", { style:s.card },
+          React.createElement("div",{style:{...s.label,marginBottom:14}},"Contact"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},
+            [["Phone",phone],["Email",email]].map(([k,v])=>v&&React.createElement("div",{key:k},React.createElement("div",{style:{fontSize:11,fontWeight:600,color:G[400],letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}},k),React.createElement("div",{style:{fontSize:14,color:G[800]}},v)))
+          )
+        )
+      )
+    );
+  };
+
+  // ── Clinic detail ──────────────────────────────────────────────────────
+  const ClinicDetailScreen = ({ clinic, onBack }) => {
+    const name    = clinic.name || "";
+    const addr    = clinic.address || (clinic.sector ? clinic.sector+", "+clinic.city : "");
+    const specs   = Array.isArray(clinic.specialties) ? clinic.specialties.join(", ") : (clinic.specialties||"");
+    const langs   = Array.isArray(clinic.languages) ? clinic.languages.join(", ") : (clinic.langs||"");
+    const phone   = clinic.phone || "";
+    const email   = clinic.email || "";
+    const contact = clinic.contact_name || "";
+    const procs   = clinic.procedures ? (Array.isArray(clinic.procedures) ? clinic.procedures : Object.values(clinic.procedures||{})) : [];
+    const initials = name.split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("");
+    return React.createElement("div", { className:"dash-screen", style:{ flex:1, overflowY:"auto" } },
+      React.createElement(DetailHero, { title:name, subtitle:addr, tag:"Clinic", initials, onBack, backLabel:"Explore Network" }),
+      React.createElement("div", { style:{ padding:"32px 40px", maxWidth:860 } },
+        React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:24 } },
+          [["Specialties",specs],["Languages",langs]].map(([k,v])=>v&&
+            React.createElement("div",{key:k,style:{...s.card,marginBottom:0}},React.createElement("div",{style:s.label},k),React.createElement("div",{style:{fontSize:13,fontWeight:500,color:G[900],marginTop:6}},v))
+          )
+        ),
+        procs.length > 0 && React.createElement("div", { style:{ ...s.card, marginBottom:20 } },
+          React.createElement("div",{style:{...s.label,marginBottom:14}},"Procedures & Pricing"),
+          React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},
+            procs.map((p,i)=>{
+              const pname = typeof p==="string"?p:(p.name||"");
+              const price = p.price_from ? "from $"+p.price_from.toLocaleString() : "";
+              return React.createElement("div",{key:i,style:{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:i<procs.length-1?`1px solid ${G[100]}`:"none",fontSize:13}},
+                React.createElement("span",{style:{color:G[700]}},pname),
+                price&&React.createElement("span",{style:{color:T[600],fontWeight:500}},price)
+              );
+            })
+          )
+        ),
+        React.createElement("div", { style:{ ...s.card, marginBottom:20 } },
+          React.createElement("div",{style:{...s.label,marginBottom:14}},"Photo gallery"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}},
+            [1,2,3,4].map(i=>React.createElement("div",{key:i,style:{aspectRatio:"4/3",borderRadius:10,background:G[100],border:`2px dashed ${G[200]}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6}},
+              React.createElement(Icon,{name:"document",size:18,color:G[300]}),
+              React.createElement("span",{style:{fontSize:10,color:G[400]}},"Photo")
+            ))
+          )
+        ),
+        React.createElement("div", { style:s.card },
+          React.createElement("div",{style:{...s.label,marginBottom:14}},"Contact"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},
+            [["Phone",phone],["Email",email],contact&&["Contact",contact]].filter(Boolean).map(([k,v])=>
+              React.createElement("div",{key:k},React.createElement("div",{style:{fontSize:11,fontWeight:600,color:G[400],letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}},k),React.createElement("div",{style:{fontSize:14,color:G[800]}},v))
+            )
+          )
+        )
+      )
+    );
+  };
+
+  // ── Home detail ────────────────────────────────────────────────────────
+  const HomeDetailScreen = ({ home, onBack }) => {
+    const name  = home.name || "";
+    const addr  = home.address || "";
+    const rate  = home.rate || home.nightly_rate || "";
+    const amen  = Array.isArray(home.amenities) ? home.amenities.join(", ") : (home.amenities||"");
+    const phone = home.phone || "";
+    const email = home.email || "";
+    const beds  = home.beds || home.total_beds || "";
+    const avail = home.available !== undefined ? home.available : (home.available_beds||"");
+    const initials = name.split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("");
+    return React.createElement("div", { className:"dash-screen", style:{ flex:1, overflowY:"auto" } },
+      React.createElement(DetailHero, { title:name, subtitle:addr, tag:"Recovery Home", initials, onBack, backLabel:"Explore Network" }),
+      React.createElement("div", { style:{ padding:"32px 40px", maxWidth:860 } },
+        React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:24 } },
+          [["Rate",rate],["Total beds",beds],["Available",avail]].filter(([,v])=>v!=="").map(([k,v])=>
+            React.createElement("div",{key:k,style:{...s.card,marginBottom:0}},React.createElement("div",{style:s.label},k),React.createElement("div",{style:{fontFamily:serif,fontSize:22,fontWeight:600,color:T[700],marginTop:6}},v))
+          )
+        ),
+        amen && React.createElement("div", { style:{ ...s.card, marginBottom:20 } },
+          React.createElement("div",{style:{...s.label,marginBottom:12}},"Amenities"),
+          React.createElement("p",{style:{fontSize:14,color:G[600],lineHeight:1.8}},amen)
+        ),
+        React.createElement("div", { style:{ ...s.card, marginBottom:20 } },
+          React.createElement("div",{style:{...s.label,marginBottom:14}},"Photos"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}},
+            [1,2,3,4].map(i=>React.createElement("div",{key:i,style:{aspectRatio:"4/3",borderRadius:10,background:G[100],border:`2px dashed ${G[200]}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6}},
+              React.createElement(Icon,{name:"home",size:18,color:G[300]}),
+              React.createElement("span",{style:{fontSize:10,color:G[400]}},"Photo")
+            ))
+          )
+        ),
+        React.createElement("div", { style:s.card },
+          React.createElement("div",{style:{...s.label,marginBottom:14}},"Contact"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},
+            [["Phone",phone],["Email",email]].filter(([,v])=>v).map(([k,v])=>
+              React.createElement("div",{key:k},React.createElement("div",{style:{fontSize:11,fontWeight:600,color:G[400],letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}},k),React.createElement("div",{style:{fontSize:14,color:G[800]}},v))
+            )
+          )
+        )
+      )
+    );
+  };
+
+  // ── CareTeamScreen ─────────────────────────────────────────────────────
+  const CareTeamScreen = () => {
+    const team = isDemo ? DEMO_CARE_TEAM : null;
+
+    // if viewing detail of a team member
+    if (selectedNetworkItem) {
+      if (networkDetailType==="doctor")  return React.createElement(DoctorDetailScreen, { doc:selectedNetworkItem,    onBack:closeDetail });
+      if (networkDetailType==="clinic")  return React.createElement(ClinicDetailScreen, { clinic:selectedNetworkItem, onBack:closeDetail });
+      if (networkDetailType==="home")    return React.createElement(HomeDetailScreen,   { home:selectedNetworkItem,   onBack:closeDetail });
+    }
+
+    if (!team) return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } },
+      React.createElement("h1",{style:{fontFamily:serif,fontSize:26,color:T[950],marginBottom:4}},"My Care Team"),
+      React.createElement("p",{style:{color:G[400],fontSize:13,marginBottom:32}},"Your assigned team will appear here once your case is confirmed."),
+      React.createElement("div",{style:{...s.card,textAlign:"center",padding:"60px 40px"}},
+        React.createElement("div",{style:{width:64,height:64,borderRadius:"50%",background:G[100],display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}},React.createElement(Icon,{name:"users",size:28,color:G[400]})),
+        React.createElement("h3",{style:{fontSize:18,fontWeight:600,color:G[900],marginBottom:8}},"No team assigned yet"),
+        React.createElement("p",{style:{fontSize:14,color:G[500],maxWidth:360,margin:"0 auto 24px",lineHeight:1.7}},"Once your procedure is confirmed, your dedicated surgeon, coordinator and recovery home will appear here."),
+        React.createElement("button",{onClick:()=>navTo("Explore Network","explore"),style:{...s.btnPrimary,fontSize:13,padding:"10px 24px"}},"Explore our network")
+      )
+    );
+
+    const Section = ({ title, children }) => React.createElement("div",{style:{marginBottom:24}},
+      React.createElement("div",{style:{...s.label,marginBottom:12}},title), children
+    );
+
+    // build objects compatible with detail screens
+    const surgeonObj = { name:team.surgeon.name, specialty:team.surgeon.specialty, license:team.surgeon.license, experience:team.surgeon.experience, langs:team.surgeon.langs, bio:team.surgeon.bio, clinic:team.surgeon.clinic, phone:team.surgeon.phone, email:team.surgeon.email, rating:"4.9", cases:41, procedures:["Rhinoplasty","Breast Augmentation","Liposuction","Facelift"] };
+    const clinicObj  = { name:team.clinic.name,  address:team.clinic.address, city:team.clinic.city, specialties:team.clinic.specialties, langs:team.clinic.langs, phone:team.clinic.phone, email:team.clinic.email };
+    const homeObj    = { name:team.home.name,    address:team.home.address, rate:team.home.rate, amenities:team.home.amenities, phone:team.home.phone, email:team.home.email, beds:4, available:2 };
+
+    const ViewBtn = ({ onClick }) => React.createElement("button",{ onClick, style:{ ...s.btnGhost, fontSize:12, padding:"7px 14px", flexShrink:0, display:"flex", alignItems:"center", gap:5 } },
+      "View profile", React.createElement(Icon,{name:"arrowLeft",size:12,color:G[500],style:{transform:"rotate(180deg)"}})
+    );
+
+    return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } },
+      React.createElement("h1",{style:{fontFamily:serif,fontSize:26,color:T[950],marginBottom:4}},"My Care Team"),
+      React.createElement("p",{style:{color:G[400],fontSize:13,marginBottom:28}},"Your dedicated team for this procedure — click any card to see the full profile"),
+      React.createElement(Section, { title:"Your Surgeon" },
+        React.createElement("div",{style:{...s.card,display:"flex",gap:20,alignItems:"flex-start",cursor:"pointer"},onClick:()=>openDetail(surgeonObj,"doctor"),onMouseEnter:e=>e.currentTarget.style.borderColor=T[300],onMouseLeave:e=>e.currentTarget.style.borderColor=G[200]},
+          React.createElement("div",{style:{width:56,height:56,borderRadius:"50%",background:T[800],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:20,fontWeight:600,color:T[200],flexShrink:0}},"MV"),
+          React.createElement("div",{style:{flex:1}},
+            React.createElement("div",{style:{fontSize:15,fontWeight:600,color:G[900],marginBottom:2}},team.surgeon.name),
+            React.createElement("div",{style:{fontSize:13,color:G[500],marginBottom:8}},team.surgeon.specialty+" \u00b7 "+team.surgeon.clinic),
+            React.createElement("p",{style:{fontSize:13,color:G[600],lineHeight:1.7,marginBottom:12}},team.surgeon.bio),
+            React.createElement("div",{style:{display:"flex",gap:16,fontSize:12,color:G[500]}},
+              React.createElement("span",null,team.surgeon.experience+" yrs experience"),
+              React.createElement("span",null,"License: "+team.surgeon.license),
+              React.createElement("span",null,team.surgeon.langs)
+            )
+          ),
+          React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8,flexShrink:0}},
+            React.createElement("button",{onClick:e=>{e.stopPropagation();navTo("Teleconsult","teleconsult");},style:{...s.btnPrimary,fontSize:12,padding:"8px 16px"}},"Book visit"),
+            React.createElement(ViewBtn,{onClick:e=>{e.stopPropagation();openDetail(surgeonObj,"doctor");}})
+          )
+        )
+      ),
+      React.createElement(Section, { title:"Your Clinic" },
+        React.createElement("div",{style:{...s.card,display:"flex",gap:20,alignItems:"flex-start",cursor:"pointer"},onClick:()=>openDetail(clinicObj,"clinic"),onMouseEnter:e=>e.currentTarget.style.borderColor=T[300],onMouseLeave:e=>e.currentTarget.style.borderColor=G[200]},
+          React.createElement("div",{style:{width:56,height:56,borderRadius:12,background:T[100],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:20,fontWeight:600,color:T[700],flexShrink:0}},"BF"),
+          React.createElement("div",{style:{flex:1}},
+            React.createElement("div",{style:{fontSize:15,fontWeight:600,color:G[900],marginBottom:2}},team.clinic.name),
+            React.createElement("div",{style:{fontSize:13,color:G[500],marginBottom:8}},team.clinic.address+", "+team.clinic.city),
+            React.createElement("div",{style:{display:"flex",gap:16,fontSize:12,color:G[500]}},
+              React.createElement("span",null,team.clinic.specialties),
+              React.createElement("span",null,"Languages: "+team.clinic.langs)
+            )
+          ),
+          React.createElement(ViewBtn,{onClick:e=>{e.stopPropagation();openDetail(clinicObj,"clinic");}})
+        )
+      ),
+      React.createElement(Section, { title:"Your Recovery Home" },
+        React.createElement("div",{style:{...s.card,display:"flex",gap:20,alignItems:"flex-start",cursor:"pointer"},onClick:()=>openDetail(homeObj,"home"),onMouseEnter:e=>e.currentTarget.style.borderColor=T[300],onMouseLeave:e=>e.currentTarget.style.borderColor=G[200]},
+          React.createElement("div",{style:{width:56,height:56,borderRadius:12,background:G[100],display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}},React.createElement(Icon,{name:"home",size:24,color:G[500]})),
+          React.createElement("div",{style:{flex:1}},
+            React.createElement("div",{style:{fontSize:15,fontWeight:600,color:G[900],marginBottom:2}},team.home.name),
+            React.createElement("div",{style:{fontSize:13,color:G[500],marginBottom:8}},team.home.address+" \u00b7 "+team.home.rate),
+            React.createElement("div",{style:{fontSize:12,color:G[500]}},team.home.amenities)
+          ),
+          React.createElement(ViewBtn,{onClick:e=>{e.stopPropagation();openDetail(homeObj,"home");}})
+        )
+      ),
+      React.createElement(Section, { title:"Your Coordinator" },
+        React.createElement("div",{style:{...s.card,display:"flex",gap:20,alignItems:"center"}},
+          React.createElement("div",{style:{width:56,height:56,borderRadius:"50%",background:G[200],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:20,fontWeight:600,color:G[600],flexShrink:0}},"SR"),
+          React.createElement("div",{style:{flex:1}},
+            React.createElement("div",{style:{fontSize:15,fontWeight:600,color:G[900],marginBottom:2}},team.coordinator.name),
+            React.createElement("div",{style:{fontSize:13,color:G[500],marginBottom:4}},team.coordinator.role),
+            React.createElement("div",{style:{fontSize:12,color:G[500]}},team.coordinator.langs)
+          ),
+          React.createElement("button",{onClick:()=>navTo("Messages","case","messages"),style:{...s.btnGhost,fontSize:12,padding:"8px 16px"}},"Send message")
+        )
+      )
+    );
+  };
+
+  // ── ExploreNetworkScreen ───────────────────────────────────────────────
+  const ExploreNetworkScreen = () => {
+    if (selectedNetworkItem) {
+      if (networkDetailType==="doctor")  return React.createElement(DoctorDetailScreen, { doc:selectedNetworkItem, onBack:closeDetail });
+      if (networkDetailType==="clinic")  return React.createElement(ClinicDetailScreen, { clinic:selectedNetworkItem, onBack:closeDetail });
+      if (networkDetailType==="home")    return React.createElement(HomeDetailScreen,   { home:selectedNetworkItem, onBack:closeDetail });
+    }
+    const data = isDemo ? DEMO_NETWORK : (networkData || { doctors:[], clinics:[], homes:[] });
+    const tabs = [["doctors","Surgeons"],["clinics","Clinics"],["homes","Recovery Homes"]];
+    const CardBtn = ({ onClick }) => React.createElement("button",{onClick,style:{...s.btnGhost,fontSize:12,padding:"6px 14px",display:"flex",alignItems:"center",gap:5}},React.createElement(Icon,{name:"arrowLeft",size:12,color:G[500],style:{transform:"rotate(180deg)"}}), "View");
+    return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } },
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}},
+        React.createElement("div",null,
+          React.createElement("h1",{style:{fontFamily:serif,fontSize:26,color:T[950],marginBottom:4}},"Explore Network"),
+          React.createElement("p",{style:{color:G[400],fontSize:13}},"Board-certified surgeons, accredited clinics and recovery homes in Santo Domingo")
+        ),
+        !isDemo && React.createElement("button",{onClick:fetchNetwork,style:{...s.btnGhost,fontSize:12,padding:"8px 14px"}},networkLoading?"Loading...":"Refresh")
+      ),
+      React.createElement("div",{style:{display:"flex",gap:4,marginBottom:24,background:G[100],borderRadius:10,padding:4,width:"fit-content"}},
+        tabs.map(([key,label])=>React.createElement("button",{key,onClick:()=>setExploreTab(key),style:{padding:"8px 20px",borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:500,background:exploreTab===key?"#fff":  "transparent",color:exploreTab===key?G[900]:G[500],boxShadow:exploreTab===key?"0 1px 4px rgba(0,0,0,.1)":"none",fontFamily:sans}},label))
+      ),
+      exploreTab==="doctors" && React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+        data.doctors.length===0
+          ? React.createElement("div",{style:{...s.card,textAlign:"center",padding:"48px 20px",color:G[400]}},"No surgeons listed yet")
+          : data.doctors.map((doc,i)=>React.createElement("div",{key:i,style:{...s.card,display:"flex",alignItems:"center",gap:16}},
+              React.createElement("div",{style:{width:48,height:48,borderRadius:"50%",background:T[800],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:18,fontWeight:600,color:T[200],flexShrink:0}},
+                (doc.name||"").split(" ").filter(w=>w[0]>="A"&&w[0]<="Z").slice(0,2).map(w=>w[0]).join("")
+              ),
+              React.createElement("div",{style:{flex:1}},
+                React.createElement("div",{style:{fontSize:14,fontWeight:600,color:G[900]}},(doc.name||"")),
+                React.createElement("div",{style:{fontSize:12,color:G[500],marginTop:2}},(doc.specialty||"")+((Array.isArray(doc.clinics)?doc.clinics[0]:doc.clinic)?" \u00b7 "+(Array.isArray(doc.clinics)?doc.clinics[0]:doc.clinic):"")),
+                React.createElement("div",{style:{fontSize:11,color:G[400],marginTop:2}},"Languages: "+(Array.isArray(doc.languages)?doc.languages.join(", "):(doc.langs||"")))
+              ),
+              React.createElement("div",{style:{textAlign:"right",flexShrink:0,marginRight:8}},
+                React.createElement("div",{style:{fontSize:13,fontWeight:600,color:T[600]}},doc.rating||"","",doc.rating?" \u2605":""),
+                React.createElement("div",{style:{fontSize:11,color:G[400]}},(doc.total_cases||doc.cases||0)+" cases")
+              ),
+              React.createElement(CardBtn,{onClick:()=>openDetail(doc,"doctor")})
+            ))
+      ),
+      exploreTab==="clinics" && React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+        data.clinics.length===0
+          ? React.createElement("div",{style:{...s.card,textAlign:"center",padding:"48px 20px",color:G[400]}},"No clinics listed yet")
+          : data.clinics.map((clinic,i)=>React.createElement("div",{key:i,style:{...s.card,display:"flex",alignItems:"center",gap:16}},
+              React.createElement("div",{style:{width:48,height:48,borderRadius:12,background:T[100],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:18,fontWeight:600,color:T[700],flexShrink:0}},
+                (clinic.name||"").split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("")
+              ),
+              React.createElement("div",{style:{flex:1}},
+                React.createElement("div",{style:{fontSize:14,fontWeight:600,color:G[900]}},(clinic.name||"")),
+                React.createElement("div",{style:{fontSize:12,color:G[500],marginTop:2}},(clinic.city||clinic.sector||"")+((clinic.address&&!clinic.city)?", "+clinic.address:"")),
+                React.createElement("div",{style:{fontSize:11,color:G[400],marginTop:2}},(Array.isArray(clinic.specialties)?clinic.specialties.join(", "):(clinic.specialties||"")))
+              ),
+              React.createElement(CardBtn,{onClick:()=>openDetail(clinic,"clinic")})
+            ))
+      ),
+      exploreTab==="homes" && React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}},
+        data.homes.length===0
+          ? React.createElement("div",{style:{...s.card,textAlign:"center",padding:"48px 20px",color:G[400],gridColumn:"1/-1"}},"No recovery homes listed yet")
+          : data.homes.map((home,i)=>React.createElement("div",{key:i,style:s.card},
+              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}},
+                React.createElement("div",null,
+                  React.createElement("div",{style:{fontSize:15,fontWeight:600,color:G[900],fontFamily:serif}},(home.name||"")),
+                  React.createElement("div",{style:{fontSize:12,color:G[400],marginTop:2}},(home.address||""))
+                ),
+                React.createElement("span",{style:{fontSize:13,fontWeight:600,color:T[600]}},(home.rate||home.nightly_rate||""))
+              ),
+              React.createElement("div",{style:{fontSize:11,color:G[500],marginBottom:12}},(Array.isArray(home.amenities)?home.amenities.join(", "):(home.amenities||""))),
+              React.createElement("button",{onClick:()=>openDetail(home,"home"),style:{...s.btnGhost,fontSize:12,padding:"7px 14px",width:"100%"}},"View details")
+            ))
+      )
+    );
+  };
 
   return React.createElement("div", { style: { fontFamily: sans, background: G[50], minHeight: "100vh", display: "flex", flexDirection: "column" } },
     React.createElement(Wizard, { open: dashWizOpen, user: user, onClose: () => setDashWizOpen(false) }),
@@ -489,14 +1148,19 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         React.createElement("button", { onClick: onSignOut, style: { ...s.btnGhost, padding: "6px 14px", fontSize: 12 } }, "Sign out")
       )
     ),
+
     React.createElement("div", { style: { display: "flex", flex: 1, overflow: "hidden" } },
       React.createElement(Sidebar, null),
       React.createElement("div", { style: { flex: 1, overflowY: "auto", minWidth: 0, background: G[50] } },
         screen === "overview" && Overview(),
         screen === "case" && CaseDetail(),
+        screen === "onboarding" && React.createElement(OnboardingScreen, null),
+        screen === "timeline" && React.createElement(LiveTimelineScreen, null),
         screen === "teleconsult" && TeleconsultScreen(),
         screen === "profile" && ProfileScreen({ profileForm, setProfileForm, profileSaved, setProfileSaved, showToast }),
-        screen === "payments" && PaymentsScreen()
+        screen === "payments" && PaymentsScreen(),
+        screen === "careteam" && React.createElement(CareTeamScreen, null),
+        screen === "explore" && React.createElement(ExploreNetworkScreen, null)
       )
     ),
     React.createElement(CheckoutModal, { open: payModalOpen, payment: selectedPayment, onClose: () => setPayModalOpen(false), onSuccess: () => { showToast("Payment received!"); fetchPayments(); } })

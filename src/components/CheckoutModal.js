@@ -1,68 +1,110 @@
 import { T, G, serif, sans, s } from '../constants.js';
-import { Modal, WzFi, WzLbl } from './shared.js';
+import { Modal } from './shared.js';
 
 const { React } = window;
-const { useState } = React;
 
-// SUPA_URL/KEY read lazily inside handlePay
+const PAYPAL_BUSINESS = "esthellahoz8@gmail.com";
+
+const submitPayPalForm = (amount, desc) => {
+  const clean = String(amount).replace(/[^0-9.]/g, "");
+  const form = document.createElement("form");
+  form.method = "post";
+  form.action = "https://www.paypal.com/cgi-bin/webscr";
+  form.target = "_blank";
+
+  const fields = {
+    cmd: "_xclick",
+    business: PAYPAL_BUSINESS,
+    item_name: desc || "Praesenti Medical Service",
+    amount: clean,
+    currency_code: "USD",
+    no_shipping: "1",
+    return: window.location.href,
+    cancel_return: window.location.href
+  };
+
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+};
 
 export const CheckoutModal = ({ open, onClose, payment, onSuccess }) => {
-  const [loading, setLoading] = useState(false);
-  const [card, setCard] = useState({ num: "", exp: "", cvc: "" });
-
   if (!open || !payment) return null;
 
-  const handlePay = async () => {
-    setLoading(true);
-    const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
-    const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
-    try {
-      await new Promise(r => setTimeout(r, 1500));
-      const res = await fetch(SUPA_URL + '/rest/v1/pago?pago_id=eq.' + payment.pago_id, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY },
-        body: JSON.stringify({
-          estado_pago: "deposito_recibido",
-          deposito_pagado: true,
-          fecha_pago: new Date().toISOString()
-        })
-      });
-      if (res.ok) { onSuccess(); onClose(); }
-    } catch (e) { console.error(e); }
-    setLoading(false);
+  const amount = String(payment.amount || "").replace(/[^0-9.]/g, "");
+  const displayAmount = amount ? "$" + parseFloat(amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "$0.00";
+
+  const handlePayPal = () => {
+    submitPayPalForm(amount, payment.desc);
+    onSuccess();
+    onClose();
   };
 
   return React.createElement(Modal, { open, onClose },
-    React.createElement("div", { style: { padding: "28px" } },
-      React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[950], marginBottom: 8 } }, "Complete Payment"),
-      React.createElement("p", { style: { fontSize: 13, color: G[500], marginBottom: 20 } }, "Secure checkout for: " + payment.desc),
-      React.createElement("div", { style: { ...s.card, background: G[50], marginBottom: 20 } },
-        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 8 } },
-          React.createElement("span", { style: s.label }, "Amount to pay"),
-          React.createElement("span", { style: { fontWeight: 600, color: T[700] } }, "$" + payment.amount)
-        )
+    React.createElement("div", { style: { padding: "32px 28px" } },
+
+      React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[950], marginBottom: 6 } }, "Complete Payment"),
+      React.createElement("p", { style: { fontSize: 13, color: G[500], marginBottom: 24 } }, payment.desc),
+
+      // Amount
+      React.createElement("div", { style: { background: T[50], border: `1px solid ${T[100]}`, borderRadius: 10, padding: "20px 24px", marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "center" } },
+        React.createElement("span", { style: { fontSize: 13, color: G[600] } }, "Total to pay"),
+        React.createElement("span", { style: { fontFamily: serif, fontSize: 28, fontWeight: 700, color: T[700] } }, displayAmount)
       ),
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 14 } },
-        React.createElement("div", null,
-          React.createElement(WzLbl, { t: "Card number" }),
-          React.createElement(WzFi, { ph: "4242 4242 4242 4242", val: card.num, onChange: e => setCard({ ...card, num: e.target.value }) })
-        ),
-        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } },
-          React.createElement("div", null,
-            React.createElement(WzLbl, { t: "Expiry" }),
-            React.createElement(WzFi, { ph: "MM/YY", val: card.exp, onChange: e => setCard({ ...card, exp: e.target.value }) })
-          ),
-          React.createElement("div", null,
-            React.createElement(WzLbl, { t: "CVC" }),
-            React.createElement(WzFi, { ph: "123", val: card.cvc, onChange: e => setCard({ ...card, cvc: e.target.value }) })
-          )
-        )
-      ),
+
+      // Native PayPal button
       React.createElement("button", {
-        onClick: handlePay,
-        disabled: loading || !card.num,
-        style: { ...s.btnPrimary, width: "100%", marginTop: 24, height: 46 }
-      }, loading ? "Processing..." : "Confirm Payment")
+        onClick: handlePayPal,
+        style: {
+          width: "100%",
+          height: 54,
+          background: "#FFC439",
+          border: "none",
+          borderRadius: 8,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          marginBottom: 14,
+          boxShadow: "0 2px 8px rgba(0,0,0,.12)"
+        }
+      },
+        // PayPal logo in brand colors
+        React.createElement("svg", { height: 24, viewBox: "0 0 124 33", xmlns: "http://www.w3.org/2000/svg" },
+          React.createElement("path", { fill: "#003087", d: "M46.211 6.749h-6.839a.95.95 0 0 0-.939.802l-2.766 17.537a.57.57 0 0 0 .564.658h3.265a.95.95 0 0 0 .939-.803l.746-4.73a.95.95 0 0 1 .938-.803h2.165c4.505 0 7.105-2.18 7.784-6.5.306-1.89.013-3.375-.872-4.415-.972-1.142-2.696-1.746-4.985-1.746zM47 13.154c-.374 2.454-2.249 2.454-4.062 2.454h-1.032l.724-4.583a.57.57 0 0 1 .563-.481h.473c1.235 0 2.4 0 3.002.704.359.42.469 1.044.332 1.906z" }),
+          React.createElement("path", { fill: "#003087", d: "M68.192 13.049h-3.275a.57.57 0 0 0-.563.481l-.145.916-.229-.332c-.709-1.029-2.29-1.373-3.868-1.373-3.619 0-6.71 2.741-7.312 6.586-.313 1.918.132 3.752 1.22 5.031 1 1.176 2.426 1.666 4.125 1.666 2.916 0 4.533-1.875 4.533-1.875l-.146.91a.57.57 0 0 0 .562.66h2.95a.95.95 0 0 0 .939-.803l1.77-11.209a.568.568 0 0 0-.561-.658zm-4.565 6.374c-.316 1.871-1.801 3.127-3.695 3.127-.951 0-1.711-.305-2.199-.883-.484-.574-.668-1.391-.514-2.301.295-1.855 1.805-3.152 3.67-3.152.93 0 1.686.309 2.184.892.499.589.697 1.411.554 2.317z" }),
+          React.createElement("path", { fill: "#009cde", d: "M90.751 13.049h-3.291a.954.954 0 0 0-.787.417l-4.539 6.686-1.924-6.425a.953.953 0 0 0-.912-.678h-3.234a.57.57 0 0 0-.541.754l3.625 10.638-3.408 4.811a.57.57 0 0 0 .465.9h3.287a.949.949 0 0 0 .781-.408l10.946-15.8a.57.57 0 0 0-.468-.895z" }),
+          React.createElement("path", { fill: "#003087", d: "M101.352 6.749h-6.84a.95.95 0 0 0-.938.802l-2.766 17.537a.569.569 0 0 0 .562.658h3.51a.665.665 0 0 0 .656-.562l.785-4.971a.95.95 0 0 1 .938-.803h2.164c4.506 0 7.105-2.18 7.785-6.5.307-1.89.012-3.375-.873-4.415-.971-1.142-2.694-1.746-4.983-1.746zm.789 6.405c-.373 2.454-2.248 2.454-4.062 2.454h-1.031l.725-4.583a.568.568 0 0 1 .562-.481h.473c1.234 0 2.4 0 3.002.704.359.42.468 1.044.331 1.906z" }),
+          React.createElement("path", { fill: "#009cde", d: "M122.531 13.049h-3.273a.569.569 0 0 0-.562.481l-.145.916-.23-.332c-.709-1.029-2.289-1.373-3.867-1.373-3.619 0-6.709 2.741-7.311 6.586-.312 1.918.131 3.752 1.219 5.031 1.001 1.176 2.426 1.666 4.125 1.666 2.916 0 4.533-1.875 4.533-1.875l-.146.91a.57.57 0 0 0 .564.66h2.949a.95.95 0 0 0 .938-.803l1.771-11.209a.571.571 0 0 0-.565-.658zm-4.565 6.374c-.314 1.871-1.801 3.127-3.695 3.127-.949 0-1.711-.305-2.199-.883-.484-.574-.666-1.391-.514-2.301.297-1.855 1.805-3.152 3.67-3.152.93 0 1.686.309 2.184.892.501.589.699 1.411.554 2.317z" })
+        )
+      ),
+
+      // Divider
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 14 } },
+        React.createElement("div", { style: { flex: 1, height: 1, background: G[200] } }),
+        React.createElement("span", { style: { fontSize: 11, color: G[400], display: "flex", alignItems: "center", gap: 4 } },
+          React.createElement("svg", { width: 12, height: 12, viewBox: "0 0 24 24", fill: "none", stroke: G[400], strokeWidth: 2 },
+            React.createElement("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" })
+          ),
+          "256-bit SSL encrypted"
+        ),
+        React.createElement("div", { style: { flex: 1, height: 1, background: G[200] } })
+      ),
+
+      React.createElement("p", { style: { fontSize: 11.5, color: G[400], textAlign: "center", lineHeight: 1.7, marginBottom: 16 } },
+        "You will be redirected to PayPal to complete your payment securely. Your coordinator will be notified once confirmed."
+      ),
+
+      React.createElement("button", { onClick: onClose, style: { ...s.btnGhost, width: "100%", fontSize: 13 } }, "Cancel")
     )
   );
 };
