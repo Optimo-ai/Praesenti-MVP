@@ -344,11 +344,9 @@
 <body>
   <div id="root"></div>
 
-  <!-- Vite injects env vars at build time (works in dev + production/Vercel) -->
   <script>
     window.VITE_SUPABASE_URL = "%VITE_SUPABASE_URL%";
     window.VITE_SUPABASE_KEY = "%VITE_SUPABASE_KEY%";
-    // Legacy aliases used by some components
     window.SUPA_URL = window.VITE_SUPABASE_URL;
     window.SUPA_KEY = window.VITE_SUPABASE_KEY;
   </script>

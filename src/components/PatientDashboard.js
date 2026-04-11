@@ -16,6 +16,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "P";
   const isDemo = !!(user == null ? void 0 : user.isDemo);
   const isNewUser = !isDemo;
+  console.log("[Patient] user:", JSON.stringify(user), "isDemo:", isDemo);
   const [screen, setScreen] = useState("overview");
   const [caseTab, setCaseTab] = useState("journey");
   const [msgs, setMsgs] = useState(isDemo ? INIT_MSGS : []);
@@ -31,8 +32,8 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   useEffect(() => {
     const fetchPatientCase = async () => {
       if (!user || user.isDemo) return;
-      const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
-      const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
+      const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
       if (!SUPA_URL) { console.warn("[CASE] No SUPA_URL"); return; }
       console.log("[CASE] Looking for case. user.id:", user.id);
       try {
@@ -130,8 +131,8 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
 
   const fetchPayments = async () => {
     if (!user || !user.id || isDemo) return;
-    const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
-    const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
+    const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
     try {
       const pacRes = await fetch(SUPA_URL + '/rest/v1/paciente?auth_user_id=eq.' + user.id + '&select=paciente_id', {
         headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
@@ -288,9 +289,9 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       React.createElement("div", { style: { borderTop: `1px solid ${G[100]}`, paddingTop: 20, marginTop: 6 } },
         React.createElement("div", { style: { ...s.label, marginBottom: 16, marginTop: 20 } }, "Security"),
         React.createElement("button", { onClick: () => {
-          const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
-          const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
-          if (!SUPA_URL || SUPA_URL.includes("placeholder")) {
+          const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+          const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
+          if (!SUPA_URL || !import.meta.env.VITE_SUPABASE_URL) {
             showToast("Password reset email sent (demo mode)");
             return;
           }
@@ -769,26 +770,36 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
 
   const fetchNetwork = async () => {
     if (isDemo) return;
-    const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
-    const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
-    if (!SUPA_URL || SUPA_URL.includes("placeholder")) return;
+    const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
+    if (!SUPA_URL || !import.meta.env.VITE_SUPABASE_URL) {
+      console.warn("[Network] No valid Supabase URL");
+      return;
+    }
     setNetworkLoading(true);
     try {
+      const headers = { apikey: SUPA_KEY, Authorization: "Bearer " + SUPA_KEY };
       const [docsRes, clinicsRes, homesRes] = await Promise.all([
-        fetch(`${SUPA_URL}/rest/v1/doctores?select=*&status=eq.active`, { headers:{ apikey:SUPA_KEY, Authorization:"Bearer "+SUPA_KEY } }).then(r=>r.json()),
-        fetch(`${SUPA_URL}/rest/v1/clinicas?select=*&status=eq.active`, { headers:{ apikey:SUPA_KEY, Authorization:"Bearer "+SUPA_KEY } }).then(r=>r.json()),
-        fetch(`${SUPA_URL}/rest/v1/recovery_homes?select=*`, { headers:{ apikey:SUPA_KEY, Authorization:"Bearer "+SUPA_KEY } }).then(r=>r.json())
+        fetch(`${SUPA_URL}/rest/v1/doctores?select=*`, { headers }).then(r => r.json()),
+        fetch(`${SUPA_URL}/rest/v1/clinicas?select=*`, { headers }).then(r => r.json()),
+        fetch(`${SUPA_URL}/rest/v1/recovery_homes?select=*`, { headers }).then(r => r.json())
       ]);
+      console.log("[Network] doctors:", docsRes, "clinics:", clinicsRes, "homes:", homesRes);
       setNetworkData({
         doctors: Array.isArray(docsRes) ? docsRes : [],
         clinics: Array.isArray(clinicsRes) ? clinicsRes : [],
         homes: Array.isArray(homesRes) ? homesRes : []
       });
-    } catch(e) { console.error("fetchNetwork error:", e); }
+    } catch(e) {
+      console.error("[Network] fetchNetwork error:", e);
+    }
     setNetworkLoading(false);
   };
 
-  React.useEffect(() => { if (screen === "explore" && !isDemo) fetchNetwork(); }, [screen]);
+  React.useEffect(() => {
+    console.log("[Network] screen:", screen, "isDemo:", isDemo);
+    if (screen === "explore" && !isDemo) fetchNetwork();
+  }, [screen]);
 
   // ── detail view state ──────────────────────────────────────────────────
   const [selectedNetworkItem, setSelectedNetworkItem] = React.useState(null);

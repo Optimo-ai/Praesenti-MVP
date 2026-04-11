@@ -1,5 +1,5 @@
 import { T, G, serif, sans, s, CASES, ADMIN_NOTES, RECOVERY_CHECKS, JOURNEY_STEPS } from '../constants.js';
-import { fetchChecklist, saveChecklist } from '../supabase.js';
+import { fetchChecklist, saveChecklist, fetchDocuments } from '../supabase.js';
 import { HamburgerIcon, Icon, SPill, Toast, Modal, IR } from './shared.js';
 
 const { React } = window;
@@ -15,6 +15,29 @@ export const AdminDashboard = ({ onSignOut }) => {
   const [tableSearch, setTableSearch] = useState("");
   const [selectedCase, setSelectedCase] = useState(CASES[0]);
   const [adminCheckDone, setAdminCheckDone] = useState(Array(RECOVERY_CHECKS.length).fill(false));
+  const [adminDocs, setAdminDocs] = useState([]);
+  const [adminCaseTab, setAdminCaseTab] = useState("journey");
+
+  const DEMO_DOCS = {
+    "C-001": [
+      { id: "d1", name: "Passport_EmilyThornton.pdf", size: "1.2 MB", req_type: "Passport / ID", url: "#", created_at: "2026-03-01T10:00:00Z" },
+      { id: "d2", name: "BloodTest_March2026.pdf", size: "340 KB", req_type: "Blood work", url: "#", created_at: "2026-03-10T14:30:00Z" },
+      { id: "d3", name: "SurgeonLetter_Vargas.pdf", size: "210 KB", req_type: "Medical clearance", url: "#", created_at: "2026-03-12T09:15:00Z" }
+    ],
+    "C-002": [
+      { id: "d4", name: "Passport_MarcusWebb.pdf", size: "980 KB", req_type: "Passport / ID", url: "#", created_at: "2026-03-18T11:00:00Z" }
+    ],
+    "C-003": [
+      { id: "d5", name: "Passport_IsabelleFontaine.pdf", size: "1.1 MB", req_type: "Passport / ID", url: "#", created_at: "2026-03-05T09:00:00Z" },
+      { id: "d6", name: "ConsentForm_Signed.pdf", size: "450 KB", req_type: "Consent form", url: "#", created_at: "2026-03-14T16:00:00Z" },
+      { id: "d7", name: "PreOp_Labwork.pdf", size: "520 KB", req_type: "Blood work", url: "#", created_at: "2026-03-15T08:30:00Z" },
+      { id: "d8", name: "InsuranceCert.pdf", size: "280 KB", req_type: "Insurance", url: "#", created_at: "2026-03-16T10:00:00Z" }
+    ],
+    "C-004": [],
+    "C-005": [
+      { id: "d9", name: "Passport_HannaBergstrom.pdf", size: "1.0 MB", req_type: "Passport / ID", url: "#", created_at: "2026-03-28T12:00:00Z" }
+    ]
+  };
 
   useEffect(() => {
     if (selectedCase && selectedCase.caso_id_uuid) {
@@ -25,11 +48,15 @@ export const AdminDashboard = ({ onSignOut }) => {
         } else {
           setAdminCheckDone(Array(RECOVERY_CHECKS.length).fill(false));
         }
+        const docs = await fetchDocuments(selectedCase.caso_id_uuid, null);
+        setAdminDocs(docs && docs.length > 0 ? docs : (DEMO_DOCS[selectedCase.id] || []));
       };
       load();
     } else {
       setAdminCheckDone(Array(RECOVERY_CHECKS.length).fill(false));
+      setAdminDocs(DEMO_DOCS[selectedCase?.id] || []);
     }
+    setAdminCaseTab("journey");
   }, [selectedCase]);
 
   const handleToggleCheck = async (i) => {
@@ -800,9 +827,48 @@ export const AdminDashboard = ({ onSignOut }) => {
 /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 8px", color: T[600], fontWeight: 600 } }, c.budget),
 /* @__PURE__ */ React.createElement("td", { className: "col-hide-xs", style: { padding: "10px 8px", color: G[500] } }, c.country)
   )))))));
+  const DocsList = ({ docs }) => docs.length === 0
+    ? React.createElement("div", { style: { textAlign: "center", padding: "40px 20px" } },
+        React.createElement(Icon, { name: "document", size: 32, color: G[300] }),
+        React.createElement("div", { style: { marginTop: 12, fontSize: 13, color: G[400] } }, "No documents uploaded yet")
+      )
+    : React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+        docs.map((d, i) => {
+          const isDemo = !d.url || d.url === "#";
+          const ext = (d.name || "").split(".").pop().toUpperCase();
+          const extColor = ext === "PDF" ? "#dc2626" : ext === "JPG" || ext === "PNG" ? T[600] : G[500];
+          return React.createElement("div", { key: d.id || i, style: { display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", background: G[50], borderRadius: 8, border: `1px solid ${G[200]}` } },
+            React.createElement("div", { style: { width: 40, height: 40, borderRadius: 8, background: "#fff", border: `1px solid ${G[200]}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, gap: 1 } },
+              React.createElement(Icon, { name: "document", size: 14, color: extColor }),
+              React.createElement("span", { style: { fontSize: 8, fontWeight: 700, color: extColor, letterSpacing: "0.05em" } }, ext)
+            ),
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+              React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: G[900], whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, d.name),
+              React.createElement("div", { style: { fontSize: 11, color: G[400], marginTop: 2 } },
+                d.size || "",
+                d.req_type ? " \u00b7 " + d.req_type : "",
+                d.created_at ? " \u00b7 " + new Date(d.created_at).toLocaleDateString() : ""
+              )
+            ),
+            isDemo
+              ? React.createElement("span", { style: { fontSize: 11, color: G[400], padding: "6px 12px", border: `1px solid ${G[200]}`, borderRadius: 6 } }, "Demo file")
+              : React.createElement("a", {
+                  href: d.url,
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                  download: d.name,
+                  style: { ...s.btnPrimary, fontSize: 11, padding: "6px 14px", textDecoration: "none", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }
+                },
+                  React.createElement(Icon, { name: "download", size: 12, color: "#fff" }),
+                  "Download"
+                )
+          );
+        })
+      );
+
   const AdminCaseDetail = () => React.createElement("div", { className: "case-detail-layout", style: { flex: 1, display: "flex", overflow: "hidden" } },
     React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 28, overflowY: "auto" } },
-      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 24 } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 20 } },
         React.createElement("button", { onClick: () => navTo("Dashboard", "overview"), style: { ...s.btnGhost, fontSize: 12, padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 } }, React.createElement(Icon, { name: "arrowLeft", size: 13, color: G[600] }), "Back"),
         React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[950] } }, selectedCase.name),
         React.createElement(SPill, { status: selectedCase.status })
@@ -816,7 +882,13 @@ export const AdminDashboard = ({ onSignOut }) => {
         React.createElement(IR, { k: "Country", v: selectedCase.country }),
         React.createElement(IR, { k: "Surgery date", v: selectedCase.date })
       ),
-      React.createElement("div", { style: s.card },
+      // Tabs
+      React.createElement("div", { style: { display: "flex", gap: 20, borderBottom: `1px solid ${G[200]}`, marginBottom: 20 } },
+        [["journey", "Journey"], ["checklist", "Checklist"], ["documents", "Documents"]].map(([k, lbl]) =>
+          React.createElement("button", { key: k, onClick: () => setAdminCaseTab(k), style: { padding: "0 4px 12px", fontSize: 13.5, fontWeight: 500, color: adminCaseTab === k ? T[700] : G[500], borderBottom: `2.5px solid ${adminCaseTab === k ? T[500] : "transparent"}`, background: "none", border: "none", borderBottom: `2.5px solid ${adminCaseTab === k ? T[500] : "transparent"}`, cursor: "pointer" } }, lbl)
+        )
+      ),
+      adminCaseTab === "journey" && React.createElement("div", { style: s.card },
         React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Journey timeline"),
         JOURNEY_STEPS.map((step, i) => React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 14, padding: "8px 0", borderBottom: i < JOURNEY_STEPS.length - 1 ? `1px solid ${G[100]}` : "none" } },
           React.createElement("div", { style: { width: 20, height: 20, borderRadius: "50%", background: step.done ? T[500] : G[200], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
@@ -826,7 +898,7 @@ export const AdminDashboard = ({ onSignOut }) => {
           React.createElement("div", { style: { fontSize: 11, color: G[400] } }, step.date)
         ))
       ),
-      React.createElement("div", { style: { ...s.card, marginTop: 16 } },
+      adminCaseTab === "checklist" && React.createElement("div", { style: s.card },
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } },
           React.createElement("div", { style: s.label }, "Recovery checklist"),
           React.createElement("div", { style: { fontSize: 12, color: G[400] } }, adminCheckDone.filter(Boolean).length, " / ", RECOVERY_CHECKS.length, " complete")
@@ -838,6 +910,13 @@ export const AdminDashboard = ({ onSignOut }) => {
           React.createElement("input", { type: "checkbox", checked: adminCheckDone[i] || false, onChange: () => handleToggleCheck(i), style: { accentColor: T[500], width: 16, height: 16 } }),
           React.createElement("span", { style: { fontSize: 13.5, color: adminCheckDone[i] ? G[400] : G[900], textDecoration: adminCheckDone[i] ? "line-through" : "none" } }, item)
         ))
+      ),
+      adminCaseTab === "documents" && React.createElement("div", { style: s.card },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } },
+          React.createElement("div", { style: s.label }, "Patient documents"),
+          React.createElement("span", { style: { fontSize: 12, color: G[400] } }, adminDocs.length + " file" + (adminDocs.length !== 1 ? "s" : ""))
+        ),
+        React.createElement(DocsList, { docs: adminDocs })
       )
     ),
     React.createElement("div", { className: "case-notes-panel", style: { width: 300, borderLeft: `1px solid ${G[200]}`, padding: 20, background: "#fff", flexShrink: 0, display: "flex", flexDirection: "column" } },

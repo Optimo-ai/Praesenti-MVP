@@ -31,8 +31,8 @@ const App = () => {
     const type = params.get("type");
     if (accessToken && (type === "signup" || type === "magiclink")) {
       window.history.replaceState(null, "", window.location.pathname);
-      const SUPA_URL = window.VITE_SUPABASE_URL || window.SUPA_URL;
-      const SUPA_KEY = window.VITE_SUPABASE_KEY || window.SUPA_KEY;
+      const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
       fetch(`${SUPA_URL}/auth/v1/user`, {
         headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${accessToken}` }
       })
