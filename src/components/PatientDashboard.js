@@ -1,4 +1,5 @@
 import { T, G, serif, sans, s, CASES, INIT_MSGS, JOURNEY_STEPS, DOCS, RECOVERY_CHECKS } from '../constants.js';
+import { SUPABASE_URL, SUPABASE_KEY } from '../config.js';
 import { fetchChecklist, saveChecklist, fetchDocuments, uploadDocument, deleteDocument } from '../supabase.js';
 import { HamburgerIcon, Icon, SPill, Toast, Modal, IR } from './shared.js';
 import { Wizard } from './Wizard.js';
@@ -32,8 +33,6 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   useEffect(() => {
     const fetchPatientCase = async () => {
       if (!user || user.isDemo) return;
-      const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
-      const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
       if (!SUPA_URL) { console.warn("[CASE] No SUPA_URL"); return; }
       console.log("[CASE] Looking for case. user.id:", user.id);
       try {
@@ -131,8 +130,6 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
 
   const fetchPayments = async () => {
     if (!user || !user.id || isDemo) return;
-    const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
     try {
       const pacRes = await fetch(SUPA_URL + '/rest/v1/paciente?auth_user_id=eq.' + user.id + '&select=paciente_id', {
         headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
@@ -289,9 +286,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       React.createElement("div", { style: { borderTop: `1px solid ${G[100]}`, paddingTop: 20, marginTop: 6 } },
         React.createElement("div", { style: { ...s.label, marginBottom: 16, marginTop: 20 } }, "Security"),
         React.createElement("button", { onClick: () => {
-          const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
-          const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
-          if (!SUPA_URL || !import.meta.env.VITE_SUPABASE_URL) {
+          if (!SUPA_URL || !SUPABASE_URL) {
             showToast("Password reset email sent (demo mode)");
             return;
           }
@@ -770,9 +765,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
 
   const fetchNetwork = async () => {
     if (isDemo) return;
-    const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
-    if (!SUPA_URL || !import.meta.env.VITE_SUPABASE_URL) {
+    if (!SUPA_URL || !SUPABASE_URL) {
       console.warn("[Network] No valid Supabase URL");
       return;
     }
@@ -846,9 +839,30 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     const clinic  = Array.isArray(doc.clinics) ? doc.clinics.join(", ") : (doc.clinic||"");
     const rating  = doc.rating || "";
     const cases   = doc.total_cases || doc.cases || "";
+    const photo   = doc.photo_url || "";
     const initials = name.split(" ").filter(w=>w[0]>="A"&&w[0]<="Z").slice(0,2).map(w=>w[0]).join("");
     return React.createElement("div", { className:"dash-screen", style:{ flex:1, overflowY:"auto" } },
-      React.createElement(DetailHero, { title:name, subtitle:spec+(subspec?" \u00b7 "+subspec:""), tag:"Surgeon", initials, onBack, backLabel:"Explore Network" }),
+      // Hero
+      React.createElement("div", { style:{ background:T[950], padding:"32px 40px 0", position:"relative", overflow:"hidden" } },
+        React.createElement("div", { style:{ position:"absolute", inset:0, backgroundImage:"radial-gradient(circle at 1px 1px,rgba(255,255,255,.03) 1px,transparent 0)", backgroundSize:"32px 32px" } }),
+        React.createElement("div", { style:{ position:"relative", zIndex:1 } },
+          React.createElement("button", { onClick:onBack, style:{ ...s.btnGhost, fontSize:12, padding:"7px 14px", display:"flex", alignItems:"center", gap:6, marginBottom:24, background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.12)", color:"rgba(255,255,255,.7)" } },
+            React.createElement(Icon, { name:"arrowLeft", size:13, color:"rgba(255,255,255,.7)" }), "Explore Network"
+          ),
+          React.createElement("div", { style:{ display:"flex", gap:24, alignItems:"flex-end", paddingBottom:32 } },
+            photo
+              ? React.createElement("img", { src:photo, alt:name, style:{ width:100, height:100, borderRadius:"50%", objectFit:"cover", border:"3px solid rgba(255,255,255,.15)", flexShrink:0 } })
+              : React.createElement("div", { style:{ width:100, height:100, borderRadius:"50%", background:T[700], border:"3px solid rgba(255,255,255,.15)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 } },
+                  React.createElement("div", { style:{ fontFamily:serif, fontSize:32, fontWeight:600, color:T[200] } }, initials)
+                ),
+            React.createElement("div", { style:{ flex:1, paddingBottom:4 } },
+              React.createElement("div", { style:{ fontSize:11, fontWeight:600, letterSpacing:"0.12em", textTransform:"uppercase", color:T[300], marginBottom:6 } }, "Surgeon"),
+              React.createElement("h1", { style:{ fontFamily:serif, fontSize:30, fontWeight:600, color:"#fff", marginBottom:6 } }, name),
+              React.createElement("div", { style:{ fontSize:14, color:"rgba(255,255,255,.5)" } }, spec+(subspec?" \u00b7 "+subspec:""))
+            )
+          )
+        )
+      ),
       React.createElement("div", { style:{ padding:"32px 40px", maxWidth:860 } },
         React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:28 } },
           [["Rating", rating+" \u2605"], ["Cases", cases+" total"], ["Experience", exp+" years"], ["License", lic]].map(([k,v]) =>
@@ -910,11 +924,13 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         ),
         React.createElement("div", { style:{ ...s.card, marginBottom:20 } },
           React.createElement("div",{style:{...s.label,marginBottom:14}},"Photo gallery"),
-          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}},
-            [1,2,3,4].map(i=>React.createElement("div",{key:i,style:{aspectRatio:"4/3",borderRadius:10,background:G[100],border:`2px dashed ${G[200]}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6}},
-              React.createElement(Icon,{name:"document",size:18,color:G[300]}),
-              React.createElement("span",{style:{fontSize:10,color:G[400]}},"Photo")
-            ))
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}},
+            (Array.isArray(clinic.photos) && clinic.photos.length > 0 ? clinic.photos : []).length > 0
+              ? (clinic.photos).map((url,i)=>React.createElement("img",{key:i,src:url,alt:"Clinic photo "+(i+1),style:{width:"100%",aspectRatio:"4/3",objectFit:"cover",borderRadius:10,border:"1px solid "+G[200]}}))
+              : [1,2,3,4].map(i=>React.createElement("div",{key:i,style:{aspectRatio:"4/3",borderRadius:10,background:G[100],border:`2px dashed ${G[200]}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6}},
+                  React.createElement(Icon,{name:"document",size:18,color:G[300]}),
+                  React.createElement("span",{style:{fontSize:10,color:G[400]}},"Photo")
+                ))
           )
         ),
         React.createElement("div", { style:s.card },
