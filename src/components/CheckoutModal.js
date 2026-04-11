@@ -43,7 +43,8 @@ export const CheckoutModal = ({ open, onClose, payment, onSuccess }) => {
   const displayAmount = amount ? "$" + parseFloat(amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "$0.00";
 
   const handlePayPal = () => {
-    submitPayPalForm(amount, payment.desc);
+    const url = `https://www.paypal.com/paypalme/esthellahoz8/${amount}USD`;
+    window.open(url, "_blank");
     onSuccess();
     onClose();
   };
