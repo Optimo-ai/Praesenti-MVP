@@ -613,8 +613,6 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       { day:"Wed Apr 16", times:["09:30","12:00","14:30"] }
     ];
     const pct = Math.round((step/3)*100);
-    const Inp = ({ val, onChange, ph, type="text" }) => React.createElement("input", { type, value:val, onChange, placeholder:ph, style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900] } });
-    const Lbl = ({ t }) => React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, t);
     if(done) return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, display:"flex", alignItems:"center", justifyContent:"center" } },
       React.createElement("div", { style:{ textAlign:"center", maxWidth:420 } },
         React.createElement("div", { style:{ width:72, height:72, borderRadius:"50%", background:T[50], border:`3px solid ${T[200]}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 24px" } }, React.createElement(Icon, { name:"leaf", size:32, color:T[600] })),
@@ -647,13 +645,13 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       step===1 && React.createElement("div", null,
         React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "Welcome, "+firstName+"!"),
         React.createElement("p", { style:{ fontSize:14, color:G[500], marginBottom:28, lineHeight:1.7 } }, "Let us finish setting up your profile so your coordinator has everything they need."),
-        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Country of residence" }), 
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Country of residence"), 
           React.createElement("select", { value:form.country, onChange:set("country"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } },
             ["", "United States", "Canada", "United Kingdom", "Australia", "Dominican Republic", "Argentina", "Austria", "Bahamas", "Belgium", "Bolivia", "Brazil", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Czech Republic", "Denmark", "Ecuador", "Egypt", "El Salvador", "Finland", "France", "Germany", "Greece", "Guatemala", "Honduras", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nicaragua", "Norway", "Panama", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "United Arab Emirates", "Uruguay", "Venezuela", "Vietnam", "Other"].map(c => React.createElement("option", { key:c, value:c }, c || "Select a country"))
           )
         ),
-        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Phone number" }), React.createElement(Inp, { val:form.phone, onChange:set("phone"), ph:"+1 555 000 0000", type:"tel" })),
-        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Preferred language" }), React.createElement("select", { value:form.lang, onChange:set("lang"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } }, ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Arabic", "Chinese", "Japanese", "Korean", "Russian", "Other"].map(l=>React.createElement("option",{key:l,value:l},l)))),
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Phone number"), React.createElement("input", { type:"tel", value:form.phone, onChange:set("phone"), placeholder:"+1 555 000 0000", style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900] } })),
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Preferred language"), React.createElement("select", { value:form.lang, onChange:set("lang"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } }, ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Arabic", "Chinese", "Japanese", "Korean", "Russian", "Other"].map(l=>React.createElement("option",{key:l,value:l},l)))),
         React.createElement("div", { style:{ display:"flex", justifyContent:"flex-end", marginTop:28 } }, React.createElement("button", { onClick:()=>{
           if(!form.country || !form.phone.trim()) {
             showToast("Please complete all required fields.");
@@ -666,13 +664,13 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "What are you looking for?"),
         React.createElement("p", { style:{ fontSize:14, color:G[500], marginBottom:24, lineHeight:1.7 } }, "This helps us match you with the right surgeon."),
         React.createElement("div", { style:{ marginBottom:22 } },
-          React.createElement(Lbl, { t:"Procedure of interest" }),
+          React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Procedure of interest"),
           React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:8 } },
             PROCS.map(p=>React.createElement("button", { key:p, onClick:()=>setProc(p), style:{ padding:"10px 14px", borderRadius:8, border:`1.5px solid ${proc===p?T[500]:G[200]}`, background:proc===p?T[50]:"#fff", color:proc===p?T[700]:G[700], fontSize:13, cursor:"pointer", fontFamily:sans, textAlign:"left" } }, p))
           )
         ),
         React.createElement("div", { style:{ marginBottom:28 } },
-          React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:8 } }, React.createElement(Lbl,{t:"Approximate budget"}), React.createElement("span",{style:{fontSize:14,fontWeight:600,color:T[600]}},"$"+budget.toLocaleString())),
+          React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:8 } }, React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Approximate budget"), React.createElement("span",{style:{fontSize:14,fontWeight:600,color:T[600]}},"$"+budget.toLocaleString())),
           React.createElement("input", { type:"range", min:1000, max:30000, step:500, value:budget, onChange:e=>setBudget(Number(e.target.value)), style:{ width:"100%", height:4, borderRadius:2, outline:"none", cursor:"pointer", border:"none", WebkitAppearance:"none", appearance:"none", background:`linear-gradient(90deg,${T[500]} ${(((budget-1000)/29000)*100)}%,${G[200]} ${(((budget-1000)/29000)*100)}%)` } }),
           React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", fontSize:11, color:G[400], marginTop:4 } }, React.createElement("span",null,"$1,000"), React.createElement("span",null,"$30,000+"))
         ),
@@ -1219,12 +1217,12 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   };
 
   // ── Notificaciones del paciente ──────────────────────────────────────────
-  const [notifications, setNotifications] = useState([
+  const [notifications, setNotifications] = useState(isDemo ? [
     { id: 1, type: "heart", title: "Coordinator assigned", body: "Laura Mendez has been assigned as your care coordinator.", time: "2 hours ago", read: false },
     { id: 2, type: "document", title: "New document", body: "Your pre-op instructions have been uploaded.", time: "1 day ago", read: false },
     { id: 3, type: "video", title: "Teleconsult reminder", body: "Your initial consultation is tomorrow at 10:00 AM.", time: "2 days ago", read: true },
     { id: 4, type: "check", title: "Checklist updated", body: "Your recovery checklist has been updated.", time: "3 days ago", read: true }
-  ]);
+  ] : []);
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
   const markRead = id => setNotifications(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
