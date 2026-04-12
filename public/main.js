@@ -1025,6 +1025,33 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       setUser(null);
       safePush({ role: "landing", dash: "landing" }, "", "#landing");
     };
+
+    useEffect(() => {
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token=")) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get("access_token");
+        if (accessToken && typeof SUPA_URL !== 'undefined' && typeof SUPA_KEY !== 'undefined') {
+          fetch(`${SUPA_URL}/auth/v1/user`, {
+            headers: {
+              "apikey": SUPA_KEY,
+              "Authorization": `Bearer ${accessToken}`
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.email) {
+              const meta = data.user_metadata || {};
+              const userRole = meta.role || "patient";
+              handleLogin(userRole, { fn: meta.fn || "", ln: meta.ln || "", email: data.email, id: data.id });
+              window.history.replaceState(null, "", window.location.pathname);
+            }
+          })
+          .catch(err => console.error("Error confirming email token:", err));
+        }
+      }
+    }, []);
+
     return /* @__PURE__ */ React.createElement("div", { style: s.page }, /* @__PURE__ */ React.createElement(Toast, { msg: toast, onDone: () => setToast(null) }), role === "landing" && /* @__PURE__ */ React.createElement(Landing, { onLogin: handleLogin, lang, setLang }), role === "patient" && /* @__PURE__ */ React.createElement(PatientDashboard, { onSignOut: handleSignOut, user, autoWiz: false }));
   };
   const startApp = () => {
