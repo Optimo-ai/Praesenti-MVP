@@ -235,18 +235,6 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   ];
 
   const TeleconsultScreen = () => {
-    if (isNewUser) {
-      return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, display: "flex", alignItems: "center", justifyContent: "center" } },
-        React.createElement("div", { style: { textAlign: "center", maxWidth: 360 } },
-          React.createElement("div", { style: { width: 52, height: 52, borderRadius: "50%", background: G[100], display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" } },
-            React.createElement(Icon, { name: "video", size: 24, color: G[400] })
-          ),
-          React.createElement("h3", { style: { fontFamily: serif, fontSize: 20, color: G[900], marginBottom: 8 } }, "Not available yet"),
-          React.createElement("p", { style: { fontSize: 13.5, color: G[500], lineHeight: 1.6 } }, "You don't have a coordinator or surgeon assigned yet. We will notify you once your care team is ready to schedule a call.")
-        )
-      );
-    }
-
     const getSlots = () => {
       const days = [];
       const today = new Date();

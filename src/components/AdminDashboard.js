@@ -201,7 +201,8 @@ export const AdminDashboard = ({ onSignOut }) => {
     if (!newInc.patient.trim() || !newInc.desc.trim()) { showToast("Please fill in patient and description"); return; }
     const id = "INC-" + String(incidents.length + 1).padStart(3, "0");
     const today = new Date();
-    const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const timeStr = today.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + timeStr;
     setIncidents(prev => [{ id, ...newInc, date: dateStr, resolved: false }, ...prev]);
     setNewInc({ patient: "", type: "Medical", severity: "Low", desc: "" });
     setShowIncidentForm(false);
