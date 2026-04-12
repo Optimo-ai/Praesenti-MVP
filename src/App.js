@@ -46,7 +46,6 @@ const App = () => {
             localStorage.setItem("session_user", JSON.stringify(userData));
             localStorage.setItem("session_view", "patient");
             history.pushState({ role: "patient", dash: "patient" }, "", "#patient");
-            if (type === "signup") setAutoWiz(true);
 
           }
           setChecking(false);

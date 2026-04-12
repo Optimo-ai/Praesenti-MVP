@@ -111,27 +111,27 @@ export const tr = (key, lang) => {
   return entry[lang] || entry.en;
 };
 export const CASES = [
-  { id: "C-001", name: "Maria Vasquez", proc: "Rhinoplasty", status: "Recovery", date: "Mar 14", surgeon: "Dr. Peña", budget: "$4,200", country: "USA" },
-  { id: "C-002", name: "James Okafor", proc: "Liposuction", status: "Pre-op", date: "Apr 02", surgeon: "Dr. Reyes", budget: "$6,800", country: "UK" },
-  { id: "C-003", name: "Sofia Martínez", proc: "Breast Augmentation", status: "Recovery", date: "Mar 20", surgeon: "Dr. Peña", budget: "$5,500", country: "CA" },
+  { id: "C-001", name: "Maria Vasquez", proc: "Rhinoplasty", status: "Recovery", date: "Mar 14", surgeon: "Dr. Marcus Varela", budget: "$4,200", country: "USA" },
+  { id: "C-002", name: "James Okafor", proc: "Liposuction", status: "Pre-op", date: "Apr 02", surgeon: "Dr. Ivan Castillo", budget: "$6,800", country: "UK" },
+  { id: "C-003", name: "Sofia Martínez", proc: "Breast Augmentation", status: "Recovery", date: "Mar 20", surgeon: "Dr. Marcus Varela", budget: "$5,500", country: "CA" },
   { id: "C-004", name: "Luca Ferreira", proc: "Hair Transplant", status: "Lead", date: "Apr 18", surgeon: "—", budget: "$3,100", country: "BR" },
-  { id: "C-005", name: "Anna Kowalski", proc: "Tummy Tuck", status: "Pre-op", date: "Apr 09", surgeon: "Dr. Castro", budget: "$7,200", country: "PL" }
+  { id: "C-005", name: "Anna Kowalski", proc: "Tummy Tuck", status: "Pre-op", date: "Apr 09", surgeon: "Dr. Carlos Romero", budget: "$7,200", country: "PL" }
 ];
 export const INIT_MSGS = [
   { side: "them", text: "Hi Maria! Welcome to Praesenti. I'm your personal care coordinator. How are you feeling today?", time: "09:14", date: "March 14" },
   { side: "me", text: "Hi! Feeling a bit nervous about tomorrow's pre-op visit, but excited too.", time: "09:22", date: "March 14" },
-  { side: "them", text: "That's completely normal! Dr. Peña's team is wonderful — you're in great hands. Do you have any last-minute questions?", time: "09:25", date: "March 14" },
+  { side: "them", text: "That's completely normal! Your surgical team is wonderful — you're in great hands. Do you have any last-minute questions?", time: "09:25", date: "March 14" },
   { side: "me", text: "Can I eat anything the night before?", time: "09:31", date: "March 14" },
   { side: "them", text: "Nothing after midnight — just water is fine until 6 AM. We'll go over the full pre-op checklist when you arrive.", time: "09:33", date: "March 14" }
 ];
 export const ADMIN_NOTES = [
-  { author: "Dr. Peña", date: "March 22 · 10:15", text: "Post-op review completed. Swelling within normal range. Patient cleared for discharge to recovery home." },
-  { author: "Coord. Ana", date: "March 20 · 08:45", text: "Patient arrived at Clinica Unión. Surgery scheduled for 10:00 AM. All pre-op labs confirmed." },
-  { author: "Coord. Ana", date: "March 14 · 14:00", text: "Pre-op consultation completed. Patient is a good candidate. Consent forms signed." }
+  { author: "Dr. Marcus Varela", date: "March 22 · 10:15", text: "Post-op review completed. Swelling within normal range. Patient cleared for discharge to recovery home." },
+  { author: "Coord. Laura", date: "March 20 · 08:45", text: "Patient arrived at the clinic. Surgery scheduled for 10:00 AM. All pre-op labs confirmed." },
+  { author: "Coord. Laura", date: "March 14 · 14:00", text: "Pre-op consultation completed. Patient is a good candidate. Consent forms signed." }
 ];
 export const JOURNEY_STEPS = [
   { label: "Application submitted", date: "Feb 28", done: true },
-  { label: "Matched with Dr. Peña", date: "Mar 02", done: true },
+  { label: "Matched with your surgeon", date: "Mar 02", done: true },
   { label: "Pre-op consultation", date: "Mar 14", done: true },
   { label: "Surgery day", date: "Mar 20", done: true },
   { label: "Recovery home check-in", date: "Mar 22", done: true },
@@ -142,7 +142,7 @@ export const JOURNEY_STEPS = [
 export const DOCS = [
   { name: "Consent Form — Rhinoplasty.pdf", size: "218 KB", date: "Mar 14" },
   { name: "Pre-op Blood Work Results.pdf", size: "94 KB", date: "Mar 17" },
-  { name: "Surgery Report — Dr. Peña.pdf", size: "340 KB", date: "Mar 20" },
+  { name: "Surgery Report.pdf", size: "340 KB", date: "Mar 20" },
   { name: "Recovery Instructions.pdf", size: "156 KB", date: "Mar 22" },
   { name: "Invoice & Payment Receipt.pdf", size: "82 KB", date: "Mar 22" }
 ];

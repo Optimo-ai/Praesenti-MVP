@@ -5,13 +5,20 @@ const { React } = window;
 const { useState } = React;
 
 const supaFetch = (path, body) => {
-  const SUPA_URL = window.VITE_SUPABASE_URL;
-  const SUPA_KEY = window.VITE_SUPABASE_KEY;
+  const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
+  
+  if (!SUPA_URL || !SUPA_KEY) {
+    return Promise.resolve({ error: "ConfigError", message: "Falta configurar las credenciales de Supabase en el .env" });
+  }
+
   return fetch(`${SUPA_URL}/auth/v1/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}` },
     body: JSON.stringify(body)
-  }).then((r) => r.json());
+  })
+    .then((r) => r.json())
+    .catch((err) => ({ error: "NetworkError", message: "Error de red al intentar conectarse al servidor." }));
 };
 
 const DEMO_ACCOUNTS = {
@@ -56,7 +63,7 @@ export const AuthModal = ({ open, onClose, onLogin, onSwitchToSignUp }) => {
     const data = await supaFetch("token?grant_type=password", { email: email.trim().toLowerCase(), password });
     setLoading(false);
     if (data.error || !data.access_token) {
-      setError(data.error_description || data.msg || "Incorrect email or password.");
+      setError(data.error_description || data.msg || data.message || (typeof data.error === 'string' ? data.error : "Incorrect email or password."));
       return;
     }
     const meta = ((_a = data.user) == null ? void 0 : _a.user_metadata) || {};
@@ -169,7 +176,11 @@ export const SignUpModal = ({ open, onClose, onSignUpDone, onSwitchToSignIn }) =
     console.log("Supabase signup response:", JSON.stringify(data, null, 2));
     const userObj = data.user || (data.id ? data : null);
     if (data.error || !userObj) {
-      setError(data.msg || data.error_description || data.error || "Could not create account. Try again.");
+      let errMsg = data.msg || data.message || data.error_description || (typeof data.error === 'string' ? data.error : "Could not create account. Try again.");
+      if (errMsg.toLowerCase().includes("duplicate key") || errMsg.toLowerCase().includes("already registered")) {
+        errMsg = "This email is already registered. Please sign in instead.";
+      }
+      setError(errMsg);
       return;
     }
     setSentTo(form.email.trim().toLowerCase());
@@ -195,7 +206,7 @@ export const SignUpModal = ({ open, onClose, onSignUpDone, onSwitchToSignIn }) =
       disabled: loading,
       style: { ...s.btnPrimary, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }
     },
-    loading ? "Creating account\u2026" : "Continue to questionnaire",
+    loading ? "Creating account\u2026" : "Create account",
     !loading && /* @__PURE__ */ React.createElement(Icon, { name: "arrowLeft", size: 14, color: "#fff", style: { transform: "rotate(180deg)" } })
   ), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", marginTop: 18, fontSize: 13, color: G[500] } }, "Already have an account?", " ", /* @__PURE__ */ React.createElement("span", {
     onClick: () => {

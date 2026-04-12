@@ -18,7 +18,12 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const isDemo = !!(user == null ? void 0 : user.isDemo);
   const isNewUser = !isDemo;
   console.log("[Patient] user:", JSON.stringify(user), "isDemo:", isDemo);
-  const [screen, setScreen] = useState("overview");
+  const [screen, setScreen] = useState(() => {
+    if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+      return "onboarding";
+    }
+    return "overview";
+  });
   const [caseTab, setCaseTab] = useState("journey");
   const [msgs, setMsgs] = useState(isDemo ? INIT_MSGS : []);
   const [msgInput, setMsgInput] = useState("");
@@ -118,7 +123,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const [tcBooked, setTcBooked] = useState(false);
   const [dashWizOpen, setDashWizOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [service, setService] = useState("Initial Consultation");
+  const [service, setService] = useState(isDemo ? "Post-op Follow-up" : "Initial Consultation");
 
   const PAT_PAYMENTS_DEMO = [
     { date: "Mar 20", desc: "Surgery \u2014 Rhinoplasty", amount: "4200", status: "Paid", method: "PayPal" },
@@ -158,6 +163,13 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   useEffect(() => { if (autoWiz) setDashWizOpen(true); }, [autoWiz]);
   const msgBodyRef = useRef(null);
   useEffect(() => { if (msgBodyRef.current) msgBodyRef.current.scrollTop = msgBodyRef.current.scrollHeight; }, [msgs]);
+
+  useEffect(() => {
+    if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+      if (screen !== "onboarding") setScreen("onboarding");
+    }
+  }, [screen, user]);
+
   const sendMsg = () => {
     if (!msgInput.trim()) return;
     const now = new Date();
@@ -167,6 +179,10 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     setTimeout(() => setMsgs((m) => [...m, { side: "them", text: "Got it! I'll get back to you shortly.", time, date: "Today" }]), 1200);
   };
   const navTo = (item, scr, tab) => {
+    if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+      showToast("Please complete your profile first.");
+      return;
+    }
     const newScr = scr || "overview";
     setSidebarItem(item);
     setScreen(newScr);
@@ -179,6 +195,10 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       history.replaceState({ item: sidebarItem, scr: screen, tab: caseTab, dash: "patient" }, "", "#patient/" + screen + (caseTab ? "/" + caseTab : ""));
     }
     const onPop = (e) => {
+      if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+        setScreen("onboarding");
+        return;
+      }
       const st = e.state;
       if (!st || st.dash !== "patient") {
         if (!st) { setScreen("overview"); setSidebarItem("Overview"); }
@@ -215,6 +235,18 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   ];
 
   const TeleconsultScreen = () => {
+    if (isNewUser) {
+      return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, display: "flex", alignItems: "center", justifyContent: "center" } },
+        React.createElement("div", { style: { textAlign: "center", maxWidth: 360 } },
+          React.createElement("div", { style: { width: 52, height: 52, borderRadius: "50%", background: G[100], display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" } },
+            React.createElement(Icon, { name: "video", size: 24, color: G[400] })
+          ),
+          React.createElement("h3", { style: { fontFamily: serif, fontSize: 20, color: G[900], marginBottom: 8 } }, "Not available yet"),
+          React.createElement("p", { style: { fontSize: 13.5, color: G[500], lineHeight: 1.6 } }, "You don't have a coordinator or surgeon assigned yet. We will notify you once your care team is ready to schedule a call.")
+        )
+      );
+    }
+
     const getSlots = () => {
       const days = [];
       const today = new Date();
@@ -245,7 +277,11 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       ) : React.createElement(React.Fragment, null,
         React.createElement("div", { style: { ...s.card, marginBottom: 14 } },
           React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Appointment type"),
-          React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 20 } }, ["Initial Consultation", "Pre-op Review", "Post-op Follow-up"].map((t) => React.createElement("button", { key: t, onClick: () => setService(t), style: { flex: 1, padding: "10px 14px", borderRadius: 8, border: `1.5px solid ${service === t ? T[500] : G[100]}`, background: service === t ? T[50] : "#fff", color: service === t ? T[700] : G[600], fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: sans } }, t))),
+          React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 } }, 
+            (isNewUser ? ["Initial Consultation"] : ["Pre-op Review", "Post-op Follow-up", "General Question"]).map((t) => 
+              React.createElement("button", { key: t, onClick: () => setService(t), style: { flex: 1, minWidth: 120, padding: "10px 14px", borderRadius: 8, border: `1.5px solid ${service === t ? T[500] : G[100]}`, background: service === t ? T[50] : "#fff", color: service === t ? T[700] : G[600], fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: sans } }, t)
+            )
+          ),
           React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Select a date & time"),
           slots.map(({ day, times }) => React.createElement("div", { key: day, style: { marginBottom: 18 } },
             React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: G[700], marginBottom: 8 } }, day),
@@ -271,13 +307,17 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 12 } }, "My Profile"),
     React.createElement("div", { style: s.card },
       React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Personal information"),
-      [["First name", "fn"], ["Last name", "ln"], ["Email address", "email"], ["Phone number", "phone"], ["Country", "country"]].map(([lbl, key]) => React.createElement("div", { key, style: { marginBottom: 14 } },
+      [["First name", "fn"], ["Last name", "ln"], ["Email address", "email"], ["Phone number", "phone"]].map(([lbl, key]) => React.createElement("div", { key, style: { marginBottom: 14 } },
         React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 6 } }, lbl),
         React.createElement("input", { value: profileForm[key], onChange: (e) => setProfileForm((f) => ({ ...f, [key]: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 8, padding: "0 14px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } })
       )),
       React.createElement("div", { style: { marginBottom: 14 } },
+        React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 6 } }, "Country"),
+        React.createElement("select", { value: profileForm.country, onChange: (e) => setProfileForm(f => ({ ...f, country: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 8, padding: "0 14px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, ["", "United States", "Canada", "United Kingdom", "Australia", "Dominican Republic", "Argentina", "Austria", "Bahamas", "Belgium", "Bolivia", "Brazil", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Czech Republic", "Denmark", "Ecuador", "Egypt", "El Salvador", "Finland", "France", "Germany", "Greece", "Guatemala", "Honduras", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nicaragua", "Norway", "Panama", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "United Arab Emirates", "Uruguay", "Venezuela", "Vietnam", "Other"].map(c => React.createElement("option", { key: c, value: c }, c || "Select a country")))
+      ),
+      React.createElement("div", { style: { marginBottom: 14 } },
         React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 6 } }, "Preferred language"),
-        React.createElement("select", { value: profileForm.lang, onChange: (e) => setProfileForm(f => ({ ...f, lang: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 8, padding: "0 14px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, ["English", "Spanish", "French", "German"].map(l => React.createElement("option", { key: l, value: l }, l)))
+        React.createElement("select", { value: profileForm.lang, onChange: (e) => setProfileForm(f => ({ ...f, lang: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 8, padding: "0 14px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Arabic", "Chinese", "Japanese", "Korean", "Russian", "Other"].map(l => React.createElement("option", { key: l, value: l }, l)))
       ),
       React.createElement("div", { style: { marginBottom: 20 } },
         React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 6 } }, "Emergency contact"),
@@ -377,7 +417,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
 
   const NEXT_STEPS = [
     { icon: "clipboard", title: "Complete your medical profile", body: "We need your health history to finalize your surgical plan.", onClick: () => navTo("My Profile", "profile") },
-    { icon: "video", title: "Book your initial teleconsult", body: "Schedule 30 mins with Dr. Pe\u00f1a to review your goals.", onClick: () => navTo("Teleconsult", "teleconsult") },
+    { icon: "video", title: "Book your initial teleconsult", body: "Schedule a 30-minute call with your coordinator to review your goals.", onClick: () => navTo("Teleconsult", "teleconsult") },
     { icon: "document", title: "Upload identification", body: "Please upload a copy of your passport or ID.", onClick: () => navTo("Documents", "case", "documents") }
   ];
 
@@ -454,12 +494,11 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const CaseDetail = () => React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
     React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 } },
       React.createElement("div", null,
-        React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "My Case"),
+          React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, caseTab === "journey" ? "My Case" : caseTab === "documents" ? "Documents" : caseTab === "recovery" ? "Recovery Checklist" : caseTab === "messages" ? "Messages" : "My Case"),
         React.createElement("p", { style: { color: G[400], fontSize: 13 } }, isDemo ? "Rhinoplasty \u2022 Care Team Assigned" : "Your case details will appear here once confirmed")
       ),
       isDemo && React.createElement("div", { style: { fontSize: 11, padding: "4px 10px", borderRadius: 10, background: T[50], color: T[700], fontWeight: 600, textTransform: "uppercase" } }, "Recovery")
     ),
-    React.createElement("div", { style: { display: "flex", gap: 24, borderBottom: `1px solid ${G[200]}`, marginBottom: 24 } }, [["journey", "Journey"], ["documents", "Documents"], ["recovery", "Checklist"], ["messages", "Messages"]].map(([k, lbl]) => React.createElement("button", { key: k, onClick: () => setCaseTab(k), style: { padding: "0 4px 12px", fontSize: 14, fontWeight: 500, color: caseTab === k ? T[700] : G[500], borderBottom: `2.5px solid ${caseTab === k ? T[500] : "transparent"}`, background: "none", borderLeft: "none", borderRight: "none", borderTop: "none", cursor: "pointer", transition: "all .2s" } }, lbl))),
     caseTab === "journey" && React.createElement(React.Fragment, null,
       React.createElement("div", { style: { ...s.card, padding: "32px" } },
         (isDemo ? JOURNEY_STEPS : [
@@ -587,7 +626,12 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
             React.createElement("div", { key:l, style:{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid rgba(255,255,255,.07)", fontSize:13 } }, React.createElement("span",{style:{color:"rgba(255,255,255,.4)"}},l), React.createElement("span",{style:{color:"rgba(255,255,255,.85)",fontWeight:500}},v))
           )
         ),
-        React.createElement("button", { onClick:()=>navTo("Overview","overview"), style:{ ...s.btnPrimary, padding:"12px 36px", fontSize:14 } }, "Go to my dashboard")
+        React.createElement("button", { onClick:() => {
+          if (user && !user.isDemo) {
+            localStorage.setItem("onboarding_done_" + user.id, "true");
+          }
+          navTo("Overview","overview");
+        }, style:{ ...s.btnPrimary, padding:"12px 36px", fontSize:14 } }, "Go to my dashboard")
       )
     );
     return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto", maxWidth:600, margin:"0 auto" } },
@@ -603,10 +647,20 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       step===1 && React.createElement("div", null,
         React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "Welcome, "+firstName+"!"),
         React.createElement("p", { style:{ fontSize:14, color:G[500], marginBottom:28, lineHeight:1.7 } }, "Let us finish setting up your profile so your coordinator has everything they need."),
-        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Country of residence" }), React.createElement(Inp, { val:form.country, onChange:set("country"), ph:"E.g. United States" })),
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Country of residence" }), 
+          React.createElement("select", { value:form.country, onChange:set("country"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } },
+            ["", "United States", "Canada", "United Kingdom", "Australia", "Dominican Republic", "Argentina", "Austria", "Bahamas", "Belgium", "Bolivia", "Brazil", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Czech Republic", "Denmark", "Ecuador", "Egypt", "El Salvador", "Finland", "France", "Germany", "Greece", "Guatemala", "Honduras", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nicaragua", "Norway", "Panama", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "United Arab Emirates", "Uruguay", "Venezuela", "Vietnam", "Other"].map(c => React.createElement("option", { key:c, value:c }, c || "Select a country"))
+          )
+        ),
         React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Phone number" }), React.createElement(Inp, { val:form.phone, onChange:set("phone"), ph:"+1 555 000 0000", type:"tel" })),
-        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Preferred language" }), React.createElement("select", { value:form.lang, onChange:set("lang"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } }, ["English","Spanish","Portuguese","French","Italian"].map(l=>React.createElement("option",{key:l,value:l},l)))),
-        React.createElement("div", { style:{ display:"flex", justifyContent:"flex-end", marginTop:28 } }, React.createElement("button", { onClick:()=>setStep(2), style:{ ...s.btnPrimary, padding:"11px 32px", fontSize:13 } }, "Continue \u2192"))
+        React.createElement("div", { style:{ marginBottom:16 } }, React.createElement(Lbl, { t:"Preferred language" }), React.createElement("select", { value:form.lang, onChange:set("lang"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } }, ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Arabic", "Chinese", "Japanese", "Korean", "Russian", "Other"].map(l=>React.createElement("option",{key:l,value:l},l)))),
+        React.createElement("div", { style:{ display:"flex", justifyContent:"flex-end", marginTop:28 } }, React.createElement("button", { onClick:()=>{
+          if(!form.country || !form.phone.trim()) {
+            showToast("Please complete all required fields.");
+            return;
+          }
+          setStep(2);
+        }, style:{ ...s.btnPrimary, padding:"11px 32px", fontSize:13 } }, "Continue \u2192"))
       ),
       step===2 && React.createElement("div", null,
         React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "What are you looking for?"),
@@ -624,7 +678,13 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         ),
         React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginTop:28 } },
           React.createElement("button", { onClick:()=>setStep(1), style:{ ...s.btnGhost, padding:"11px 24px", fontSize:13 } }, "\u2190 Back"),
-          React.createElement("button", { onClick:()=>setStep(3), style:{ ...s.btnPrimary, padding:"11px 32px", fontSize:13 } }, "Continue \u2192")
+          React.createElement("button", { onClick:()=>{
+            if(!proc) {
+              showToast("Please select a procedure.");
+              return;
+            }
+            setStep(3);
+          }, style:{ ...s.btnPrimary, padding:"11px 32px", fontSize:13 } }, "Continue \u2192")
         )
       ),
       step===3 && React.createElement("div", null,
@@ -1158,16 +1218,54 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     );
   };
 
+  // ── Notificaciones del paciente ──────────────────────────────────────────
+  const [notifications, setNotifications] = useState([
+    { id: 1, type: "heart", title: "Coordinator assigned", body: "Laura Mendez has been assigned as your care coordinator.", time: "2 hours ago", read: false },
+    { id: 2, type: "document", title: "New document", body: "Your pre-op instructions have been uploaded.", time: "1 day ago", read: false },
+    { id: 3, type: "video", title: "Teleconsult reminder", body: "Your initial consultation is tomorrow at 10:00 AM.", time: "2 days ago", read: true },
+    { id: 4, type: "check", title: "Checklist updated", body: "Your recovery checklist has been updated.", time: "3 days ago", read: true }
+  ]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const markRead = id => setNotifications(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
+
+  const NotifBell = () => React.createElement("div", { style: { position: "relative" } },
+    React.createElement("button", { onClick: () => setNotifOpen(o => !o), style: { background: "none", border: `1px solid ${G[200]}`, borderRadius: 8, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" } },
+      React.createElement(Icon, { name: "alertCircle", size: 18, color: unreadCount > 0 ? T[600] : G[400] }),
+      unreadCount > 0 && React.createElement("span", { style: { position: "absolute", top: -5, right: -5, width: 18, height: 18, borderRadius: "50%", background: T[500], color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" } }, unreadCount)
+    ),
+    notifOpen && React.createElement("div", { style: { position: "absolute", right: 0, top: 46, width: 320, background: "#fff", border: `1px solid ${G[200]}`, borderRadius: 12, zIndex: 200, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,.1)" } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: `1px solid ${G[100]}` } },
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: G[900] } }, "Notifications"),
+        unreadCount > 0 && React.createElement("button", { onClick: () => setNotifications(ns => ns.map(n => ({ ...n, read: true }))), style: { fontSize: 11, color: T[600], background: "none", border: "none", cursor: "pointer", fontFamily: sans } }, "Mark all read")
+      ),
+      React.createElement("div", { style: { maxHeight: 320, overflowY: "auto" } },
+        notifications.map(n => React.createElement("div", { key: n.id, onClick: () => { markRead(n.id); setNotifOpen(false); }, style: { display: "flex", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${G[100]}`, cursor: "pointer", background: n.read ? "#fff" : T[50] } },
+          React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: n.read ? G[100] : T[100], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 } },
+            React.createElement(Icon, { name: n.type, size: 14, color: n.read ? G[400] : T[600] })
+          ),
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("div", { style: { fontSize: 13, fontWeight: n.read ? 400 : 600, color: G[900], marginBottom: 2 } }, n.title),
+            React.createElement("div", { style: { fontSize: 12, color: G[500], lineHeight: 1.5, marginBottom: 2 } }, n.body),
+            React.createElement("div", { style: { fontSize: 11, color: G[400] } }, n.time)
+          ),
+          !n.read && React.createElement("div", { style: { width: 8, height: 8, borderRadius: "50%", background: T[500], flexShrink: 0, marginTop: 6 } })
+        ))
+      )
+    )
+  );
+
   return React.createElement("div", { style: { fontFamily: sans, background: G[50], minHeight: "100vh", display: "flex", flexDirection: "column" } },
     React.createElement(Wizard, { open: dashWizOpen, user: user, onClose: () => setDashWizOpen(false) }),
     toast && React.createElement(Toast, { msg: toast, onDone: () => setToast(null) }),
     React.createElement("div", { className: "sidebar-overlay" + (sidebarOpen ? " open" : ""), onClick: () => setSidebarOpen(false) }),
     React.createElement("div", { className: "dash-header", style: { height: 60, background: "#fff", borderBottom: `1px solid ${G[200]}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 100 } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
-        React.createElement("button", { className: "mobile-menu-btn", onClick: () => setSidebarOpen(o => !o) }, React.createElement(Icon, { name: "menu", size: 22, color: G[800] })),
+        screen !== "onboarding" && React.createElement("button", { className: "mobile-menu-btn", onClick: () => setSidebarOpen(o => !o) }, React.createElement(Icon, { name: "menu", size: 22, color: G[800] })),
         React.createElement("div", { style: { fontFamily: serif, fontSize: 19, fontWeight: 600, color: T[900], letterSpacing: "0.06em", textTransform: "uppercase" } }, "Praes", React.createElement("span", { style: { color: T[500] } }, "enti"))
       ),
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 16 } },
+        React.createElement(NotifBell, null),
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: G[700] } },
           React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: T[700], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 14, fontWeight: 600, color: T[200] } }, initials),
           React.createElement("span", { className: "col-hide-xs" }, fullName)
@@ -1177,7 +1275,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     ),
 
     React.createElement("div", { style: { display: "flex", flex: 1, overflow: "hidden" } },
-      React.createElement(Sidebar, null),
+      screen !== "onboarding" && React.createElement(Sidebar, null),
       React.createElement("div", { style: { flex: 1, overflowY: "auto", minWidth: 0, background: G[50] } },
         screen === "overview" && Overview(),
         screen === "case" && CaseDetail(),

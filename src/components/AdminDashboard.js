@@ -1,5 +1,6 @@
 import { T, G, serif, sans, s, CASES, ADMIN_NOTES, RECOVERY_CHECKS, JOURNEY_STEPS } from '../constants.js';
 import { fetchChecklist, saveChecklist, fetchDocuments } from '../supabase.js';
+import { SUPABASE_URL, SUPABASE_KEY } from '../config.js';
 import { HamburgerIcon, Icon, SPill, Toast, Modal, IR } from './shared.js';
 
 const { React } = window;
@@ -70,6 +71,33 @@ export const AdminDashboard = ({ onSignOut }) => {
   };
 
   const showToast = (msg) => setToast(msg);
+
+  // Real data from Supabase (falls back to demo data)
+  const [dbDoctores, setDbDoctores] = useState([]);
+  const [dbClinics, setDbClinics] = useState([]);
+  const [dbHomes, setDbHomes] = useState([]);
+  const [dbCoords, setDbCoords] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    const sUrl = SUPABASE_URL || window.SUPA_URL || window.VITE_SUPABASE_URL || "";
+    const sKey = SUPABASE_KEY || window.SUPA_KEY || window.VITE_SUPABASE_KEY || "";
+    if (!sUrl || !sKey) return;
+    const h = { apikey: sKey, Authorization: "Bearer " + sKey };
+    Promise.all([
+      fetch(sUrl + "/rest/v1/doctores?select=*&order=name", { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(sUrl + "/rest/v1/clinicas?select=*&order=name", { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(sUrl + "/rest/v1/recovery_homes?select=*&order=name", { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(sUrl + "/rest/v1/coordinadores?select=*&order=name", { headers: h }).then(r => r.ok ? r.json() : []).catch(() => [])
+    ]).then(([docs, clinics, homes, coords]) => {
+      if (Array.isArray(docs) && docs.length) setDbDoctores(docs);
+      if (Array.isArray(clinics) && clinics.length) setDbClinics(clinics);
+      if (Array.isArray(homes) && homes.length) setDbHomes(homes);
+      if (Array.isArray(coords) && coords.length) setDbCoords(coords);
+      setDataLoaded(true);
+    });
+  }, []);
+
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [selectedHome, setSelectedHome] = useState(null);
   const [selectedCoord, setSelectedCoord] = useState(null);
@@ -113,10 +141,9 @@ export const AdminDashboard = ({ onSignOut }) => {
     ]],
     ["Network", [
       ["Providers", "userMd", () => navTo("Providers", "providers")],
-      ["+ New Clinic", "hospital", () => navTo("+ New Clinic", "form-clinic")],
-      ["+ New Doctor", "stethoscope", () => navTo("+ New Doctor", "form-doctor")],
+      ["Clinics", "hospital", () => navTo("Clinics", "clinics")],
+      ["Doctors", "stethoscope", () => navTo("Doctors", "doctors")],
       ["Recovery Homes", "home", () => navTo("Recovery Homes", "homes")],
-      ["+ New Home", "seedling", () => navTo("+ New Home", "form-home")],
       ["Coordinators", "network", () => navTo("Coordinators", "coordinators")]
     ]],
     ["Finance", [
@@ -125,6 +152,10 @@ export const AdminDashboard = ({ onSignOut }) => {
       ["Reports", "fileText", () => navTo("Reports", "reports")]
     ]]
   ];
+
+  // Modal state for inline forms
+  const [modal, setModal] = React.useState(null); // null | "clinic" | "doctor" | "home" | "coord"
+  const closeModal = () => setModal(null);
   const PanelHeader = ({ title, subtitle, actions }) => /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 28 } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, title), subtitle && /* @__PURE__ */ React.createElement("p", { style: { color: G[400], fontSize: 13 } }, subtitle), actions && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 14 } }, actions));
   const Stat = ({ label, value, color, icon }) => /* @__PURE__ */ React.createElement("div", { style: { ...s.card, marginBottom: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: s.label }, label), /* @__PURE__ */ React.createElement(Icon, { name: icon, size: 14, color })), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: serif, fontSize: 32, fontWeight: 600, color } }, value));
   const PIPELINE_COLS = [
@@ -140,6 +171,11 @@ export const AdminDashboard = ({ onSignOut }) => {
     {
       key: i,
       style: { ...s.card, marginBottom: 8, padding: "12px 14px", cursor: "pointer" },
+      onClick: () => {
+        const fullCase = CASES.find((c) => c.name === it.name) || { ...it, id: "C-000", status: label, date: "TBD", surgeon: "\u2014 Unassigned \u2014" };
+        setSelectedCase(fullCase);
+        navTo("All Cases", "case");
+      },
       onMouseEnter: (e) => e.currentTarget.style.borderColor = T[300],
       onMouseLeave: (e) => e.currentTarget.style.borderColor = G[200]
     },
@@ -233,6 +269,14 @@ export const AdminDashboard = ({ onSignOut }) => {
     { name: "Dr. R. Herrera", spec: "Dental & Maxillofacial", hosp: "DentalPro", cases: 44, rating: "4.9", cert: "IAOMS", phone: "+1 809 555 0505", email: "herrera@dentalpro.com", langs: "Spanish, English, French", bio: "Oral and maxillofacial surgeon with specialty in dental veneers, implants, and jaw surgery. 15 years serving international patients." }
   ];
   // \u2500\u2500 PROVIDER DETAIL SCREEN (full page) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  const CLINICS = [
+    { name: "Cl\u00ednica Vida", sector: "Piantini", city: "Santo Domingo", specialties: "Plastic Surgery, Aesthetics", rating: "4.9", phone: "+1 809 555 0301", email: "info@clinicavida.com" },
+    { name: "Centro M\u00e9dico Central", sector: "Gazcue", city: "Santo Domingo", specialties: "Bariatric, General Surgery", rating: "4.8", phone: "+1 809 555 0401", email: "info@centromedico.com" },
+    { name: "Hospital del Este", sector: "San Pedro", city: "San Pedro de Macor\u00eds", specialties: "General Surgery, Bariatric", rating: "4.7", phone: "+1 809 555 0501", email: "info@hospitaleste.com" },
+    { name: "Cl\u00ednica del Sol", sector: "Punta Cana", city: "La Altagracia", specialties: "Hair Restoration, Aesthetics", rating: "5.0", phone: "+1 809 555 0601", email: "info@clinicasol.com" },
+    { name: "DentalPro", sector: "Naco", city: "Santo Domingo", specialties: "Dental, Maxillofacial", rating: "4.9", phone: "+1 809 555 0701", email: "info@dentalpro.com" }
+  ];
   const ProviderDetailScreen = () => {
     const p = selectedProvider;
     if (!p) return null;
@@ -323,8 +367,8 @@ export const AdminDashboard = ({ onSignOut }) => {
     return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
       React.createElement(PanelHeader, { title: "Providers", subtitle: "Board-certified surgeons in the Praesenti network",
         actions: [
-          React.createElement("button", { key: "c", onClick: () => navTo("+ New Clinic", "form-clinic"), style: { ...s.btnGhost, fontSize: 13, padding: "9px 18px" } }, "+ Clinic"),
-          React.createElement("button", { key: "d", onClick: () => navTo("+ New Doctor", "form-doctor"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 18px" } }, "+ Doctor")
+          React.createElement("button", { key: "c", onClick: () => setModal("clinic"), style: { ...s.btnGhost, fontSize: 13, padding: "9px 18px" } }, "+ Clinic"),
+          React.createElement("button", { key: "d", onClick: () => setModal("doctor"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 18px" } }, "+ Doctor")
         ]
       }),
       React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
@@ -359,6 +403,61 @@ export const AdminDashboard = ({ onSignOut }) => {
     { name: "Residencial Sol", loc: "Gazcue, Santo Domingo", beds: 3, occ: 1, amenities: "Shared cook \xB7 Transport", rate: "$160/night", rating: "4.7", phone: "+1 809 555 1004", email: "info@residencialsol.com", includes: "WiFi, Shared cook, AC, Transport", staff: "Day assistant + basic night guard", emergency: "Cl\u00ednica Vida" }
   ];
   // \u2500\u2500 HOME DETAIL SCREEN (full page) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  const ClinicsScreen = () => React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
+    React.createElement(PanelHeader, { title: "Clinics", subtitle: "Accredited clinics and hospitals in the network",
+      actions: [React.createElement("button", { key: "add", onClick: () => setModal("clinic"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 20px" } }, "+ Add clinic")]
+    }),
+    React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
+      React.createElement(Stat, { label: "Total clinics", value: CLINICS.length, color: T[700], icon: "hospital" }),
+      React.createElement(Stat, { label: "Avg. rating", value: "4.9", color: T[500], icon: "activity" }),
+      React.createElement(Stat, { label: "Active procedures", value: "124", color: G[500], icon: "check" })
+    ),
+    CLINICS.map((c, i) => React.createElement("div", { key: i, style: { ...s.card, display: "flex", alignItems: "center", gap: 16, marginBottom: 12 } },
+      React.createElement("div", { style: { width: 44, height: 44, borderRadius: 12, background: T[100], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 16, fontWeight: 700, color: T[700], flexShrink: 0 } },
+        c.name.split(" ").filter(w => w.length > 2).slice(0, 2).map(w => w[0]).join("")
+      ),
+      React.createElement("div", { style: { flex: 1 } },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: G[900] } }, c.name),
+        React.createElement("div", { style: { fontSize: 12, color: G[500], marginTop: 2 } }, c.sector, ", ", c.city),
+        React.createElement("div", { style: { fontSize: 11, color: G[400], marginTop: 2 } }, c.specialties)
+      ),
+      React.createElement("div", { style: { textAlign: "right" } },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: T[600] } }, c.rating, " \u2605")
+      )
+    ))
+  );
+
+  const DoctorsScreen = () => {
+    if (selectedProvider) return React.createElement(ProviderDetailScreen, null);
+    return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
+      React.createElement(PanelHeader, { title: "Doctors", subtitle: "Board-certified surgeons in the Praesenti network",
+        actions: [React.createElement("button", { key: "d", onClick: () => setModal("doctor"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 18px" } }, "+ Add doctor")]
+      }),
+      React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
+        React.createElement(Stat, { label: "Active doctors", value: PROVIDERS.length, color: T[700], icon: "userMd" }),
+        React.createElement(Stat, { label: "Avg. rating", value: "4.86", color: T[500], icon: "activity" }),
+        React.createElement(Stat, { label: "Cases this month", value: "12", color: G[500], icon: "users" })
+      ),
+      PROVIDERS.map((p, i) => React.createElement("div", { key: i, style: { ...s.card, display: "flex", alignItems: "center", gap: 18, marginBottom: 12, cursor: "pointer" },
+        onClick: () => setSelectedProvider(p),
+        onMouseEnter: e => e.currentTarget.style.borderColor = T[300],
+        onMouseLeave: e => e.currentTarget.style.borderColor = G[200]
+      },
+        React.createElement("div", { style: { width: 44, height: 44, borderRadius: "50%", background: T[800], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 18, fontWeight: 600, color: T[200], flexShrink: 0 } }, p.name.split(" ")[1][0]),
+        React.createElement("div", { style: { flex: 1 } },
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: G[900] } }, p.name),
+          React.createElement("div", { style: { fontSize: 12, color: G[500], marginTop: 2 } }, p.spec, " \u00b7 ", p.hosp),
+          React.createElement("div", { style: { fontSize: 11, color: G[400], marginTop: 3 } }, p.cert)
+        ),
+        React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } },
+          React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: T[600] } }, p.rating, " \u2605"),
+          React.createElement("div", { style: { fontSize: 11, color: G[400] } }, p.cases, " cases")
+        ),
+        React.createElement(Icon, { name: "arrowLeft", size: 14, color: G[300], style: { transform: "rotate(180deg)" } })
+      ))
+    );
+  };
   const HomeDetailScreen = () => {
     const h = selectedHome;
     if (!h) return null;
@@ -462,7 +561,7 @@ export const AdminDashboard = ({ onSignOut }) => {
     if (selectedHome) return React.createElement(HomeDetailScreen, null);
     return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
       React.createElement(PanelHeader, { title: "Recovery Homes", subtitle: "Accredited recovery facilities in the network",
-        actions: [React.createElement("button", { key: "add", onClick: () => navTo("+ New Home", "form-home"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 20px" } }, "+ Add home")]
+        actions: [React.createElement("button", { key: "add", onClick: () => setModal("home"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 20px" } }, "+ Add home")]
       }),
       React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
         React.createElement(Stat, { label: "Total homes", value: HOMES.length, color: T[700], icon: "home" }),
@@ -578,7 +677,7 @@ export const AdminDashboard = ({ onSignOut }) => {
     if (selectedCoord) return React.createElement(CoordDetailScreen, null);
     return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
       React.createElement(PanelHeader, { title: "Coordinators", subtitle: "Patient care coordination team",
-        actions: [React.createElement("button", { key: "add", onClick: () => showToast("Coordinator invite coming soon"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 20px" } }, "+ Add coordinator")]
+        actions: [React.createElement("button", { key: "add", onClick: () => setModal("coord"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 20px" } }, "+ Add coordinator")]
       }),
       React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
         React.createElement(Stat, { label: "Active coordinators", value: COORDS.filter(c => c.status === "Active").length, color: T[700], icon: "users" }),
@@ -878,6 +977,19 @@ export const AdminDashboard = ({ onSignOut }) => {
         React.createElement(IR, { k: "Case ID", v: selectedCase.id }),
         React.createElement(IR, { k: "Procedure", v: selectedCase.proc }),
         React.createElement(IR, { k: "Surgeon", v: selectedCase.surgeon }),
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${G[100]}` } },
+          React.createElement("span", { style: { color: G[500], fontWeight: 300, fontSize: 13 } }, "Coordinator"),
+          React.createElement("select", {
+            value: selectedCase.coordinator || "\u2014 Unassigned \u2014",
+            onChange: (e) => {
+              setSelectedCase({ ...selectedCase, coordinator: e.target.value });
+              showToast("Coordinator assigned");
+            },
+            style: { padding: "4px 8px", borderRadius: 6, border: `1px solid ${G[200]}`, fontSize: 12, outline: "none", color: G[900], background: G[50], textAlign: "right", fontFamily: sans, cursor: "pointer" }
+          },
+            ["\u2014 Unassigned \u2014", ...(dbCoords.length > 0 ? dbCoords.map(c => c.name) : ["Laura Mendez", "Carlos Vega", "Nadia Bertrand", "Kevin Osei"])].map(c => React.createElement("option", { key: c, value: c }, c))
+          )
+        ),
         React.createElement(IR, { k: "Budget", v: selectedCase.budget }),
         React.createElement(IR, { k: "Country", v: selectedCase.country }),
         React.createElement(IR, { k: "Surgery date", v: selectedCase.date })
@@ -934,148 +1046,147 @@ export const AdminDashboard = ({ onSignOut }) => {
       )
     )
   );
-
-  // \u2500\u2500 SHARED FORM HELPERS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ─── INLINE ADD MODAL ──────────────────────────────────────────────
   const FLbl = ({ t, req }) => React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, t, req && React.createElement("span", { style:{ color:"#dc2626", marginLeft:2 } }, "*"));
   const FInput = ({ val, onChange, ph, type="text", err }) => React.createElement("input", { type, value:val, onChange, placeholder:ph, style:{ width:"100%", height:40, border:`1px solid ${err?"#fca5a5":G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900] } });
   const FTextarea = ({ val, onChange, ph, rows=3 }) => React.createElement("textarea", { value:val, onChange, placeholder:ph, rows, style:{ width:"100%", border:`1px solid ${G[200]}`, borderRadius:7, padding:"10px 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], resize:"vertical" } });
   const FSelect = ({ val, onChange, options }) => React.createElement("select", { value:val, onChange, style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } }, options.map(o => React.createElement("option", { key:o, value:o }, o)));
-  const FSec = ({ title }) => React.createElement("div", { style:{ fontSize:11, fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T[500], marginTop:28, marginBottom:14, paddingBottom:8, borderBottom:`1px solid ${G[100]}` } }, title);
+  const FSec = ({ title }) => React.createElement("div", { style:{ fontSize:11, fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T[500], marginTop:24, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${G[100]}` } }, title);
   const FRow = ({ children, cols=2 }) => React.createElement("div", { style:{ display:"grid", gridTemplateColumns:`repeat(${cols},1fr)`, gap:14, marginBottom:14 } }, children);
   const FField = ({ label, req, children }) => React.createElement("div", null, React.createElement(FLbl, { t:label, req }), children);
-  const FChk = ({ items, checked, toggle, cols=2 }) => React.createElement("div", { style:{ display:"grid", gridTemplateColumns:`repeat(${cols},1fr)`, gap:8 } }, items.map(item => React.createElement("label", { key:item, style:{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:G[700], cursor:"pointer", padding:"5px 0" } }, React.createElement("input", { type:"checkbox", checked:checked.includes(item), onChange:()=>toggle(item), style:{ accentColor:T[500], width:15, height:15 } }), item)));
-  const FormSuccess = ({ title, body, onNew, onBack, backLabel }) => React.createElement("div", { style:{ textAlign:"center", padding:"60px 32px" } },
-    React.createElement("div", { style:{ width:60, height:60, borderRadius:"50%", background:T[50], border:`2px solid ${T[200]}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px" } }, React.createElement(Icon, { name:"check", size:26, color:T[600] })),
-    React.createElement("h2", { style:{ fontFamily:serif, fontSize:24, color:T[950], marginBottom:8 } }, title),
-    React.createElement("p", { style:{ fontSize:14, color:G[500], lineHeight:1.7, marginBottom:28 } }, body),
-    React.createElement("div", { style:{ display:"flex", gap:12, justifyContent:"center" } },
-      React.createElement("button", { onClick:onNew, style:{ ...s.btnPrimary, padding:"10px 24px", fontSize:13 } }, "+ Agregar otro"),
-      React.createElement("button", { onClick:onBack, style:{ ...s.btnGhost, padding:"10px 24px", fontSize:13 } }, backLabel||"Volver")
+  const LANG_OPTS = ["Espa\u00f1ol","Ingl\u00e9s","Portugu\u00e9s","Franc\u00e9s","Italiano","Alem\u00e1n"];
+  const SPEC_OPTS_CLINIC = ["Cirug\u00eda pl\u00e1stica","Cirug\u00eda bari\u00e1trica","Odontolog\u00eda est\u00e9tica","Trasplante capilar","Ortopedia","Medicina general","Oftalmolog\u00eda"];
+  const SPEC_OPTS_DOC = ["Cirug\u00eda pl\u00e1stica","Cirug\u00eda bari\u00e1trica","Odontolog\u00eda est\u00e9tica","Trasplante capilar","Anestesiolog\u00eda","Medicina interna","Ortopedia"];
+
+  const AddModal = () => {
+    const [form, setForm] = React.useState({});
+    const [langs, setLangs] = React.useState([]);
+    const [specs, setSpecs] = React.useState([]);
+    const [saving, setSaving] = React.useState(false);
+    const [err, setErr] = React.useState({});
+    const set = k => e => { setForm(f => ({ ...f, [k]: e.target.value })); setErr(ex => ({ ...ex, [k]: false })); };
+    const toggleLang = v => setLangs(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v]);
+    const toggleSpec = v => setSpecs(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v]);
+    const sUrl = SUPABASE_URL || window.SUPA_URL || window.VITE_SUPABASE_URL || "";
+    const sKey = SUPABASE_KEY || window.SUPA_KEY || window.VITE_SUPABASE_KEY || "";
+
+    const handleSave = async () => {
+      const required = modal === "coord" ? ["fn","ln","email"] : modal === "doctor" ? ["name","license","specialty"] : ["name","city","phone"];
+      const newErr = {};
+      required.forEach(k => { if (!(form[k]||"").trim()) newErr[k] = true; });
+      if (Object.keys(newErr).length) { setErr(newErr); return; }
+      setSaving(true);
+      try {
+        if (sUrl && sKey) {
+          const h = { "Content-Type":"application/json", apikey: sKey, Authorization: "Bearer " + sKey, Prefer: "return=minimal" };
+          if (modal === "clinic") await fetch(sUrl + "/rest/v1/clinicas", { method:"POST", headers:h, body: JSON.stringify({ name:form.name, address:form.address||"", sector:form.sector||"", city:form.city, phone:form.phone, email:form.email||"", specialties:specs.join(", "), languages:langs.join(", ") }) });
+          else if (modal === "doctor") await fetch(sUrl + "/rest/v1/doctores", { method:"POST", headers:h, body: JSON.stringify({ name:form.name, specialty:form.specialty, subspecialty:form.subspecialty||"", license:form.license, experience:parseInt(form.exp)||0, bio:form.bio||"", languages:langs, clinics:[], procedures:specs, rating:"New", cases:0 }) });
+          else if (modal === "home") await fetch(sUrl + "/rest/v1/recovery_homes", { method:"POST", headers:h, body: JSON.stringify({ name:form.name, address:form.address||"", sector:form.sector||"", city:form.city, phone:form.phone, email:form.email||"", total_beds:parseInt(form.beds)||0, rate_per_night:form.rate||"", staff_model:form.staff||"", emergency_clinic:form.emergency_clinic||"", languages:langs.join(", ") }) });
+          else if (modal === "coord") await fetch(sUrl + "/rest/v1/coordinadores", { method:"POST", headers:h, body: JSON.stringify({ name:`${form.fn} ${form.ln}`, email:form.email, phone:form.phone||"", languages:langs.join(" \u00b7 ")||"EN", status:"Active", cases:0 }) });
+        }
+        if (modal === "coord") setCoordsList(prev => [{ name:`${form.fn} ${form.ln}`, email:form.email, phone:form.phone||"", lang:langs.join(" \u00b7 ")||"EN", cases:0, status:"Active", rating:"New", joined:"Just now", bio:"" }, ...prev]);
+        showToast("Saved successfully");
+        closeModal();
+      } catch(e) { showToast("Error saving. Please try again."); }
+      setSaving(false);
+    };
+
+    const titles = { clinic:"Add Clinic", doctor:"Add Doctor", home:"Add Recovery Home", coord:"Add Coordinator" };
+
+    const BodyClinic = () => React.createElement(React.Fragment, null,
+      React.createElement(FSec, { title:"Identification" }),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Name", req:true }, React.createElement(FInput, { val:form.name||"", onChange:set("name"), ph:"Cl\u00ednica Vida", err:err.name })), React.createElement(FField, { label:"Certifications" }, React.createElement(FInput, { val:form.cert||"", onChange:set("cert"), ph:"JCI, ABPS" }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Address" }, React.createElement(FInput, { val:form.address||"", onChange:set("address"), ph:"Av. Principal 123" })), React.createElement(FField, { label:"Sector" }, React.createElement(FInput, { val:form.sector||"", onChange:set("sector"), ph:"Piantini" }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"City", req:true }, React.createElement(FInput, { val:form.city||"", onChange:set("city"), ph:"Santo Domingo", err:err.city })), React.createElement(FField, { label:"Phone", req:true }, React.createElement(FInput, { val:form.phone||"", onChange:set("phone"), ph:"+1 809 000 0000", err:err.phone }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Email" }, React.createElement(FInput, { val:form.email||"", onChange:set("email"), ph:"info@clinica.com", type:"email" })), React.createElement(FField, { label:"Contact person" }, React.createElement(FInput, { val:form.contact||"", onChange:set("contact"), ph:"Full name" }))),
+      React.createElement(FSec, { title:"Specialties" }),
+      React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:8, marginBottom:14 } }, SPEC_OPTS_CLINIC.map(item => React.createElement("label", { key:item, style:{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:G[700], cursor:"pointer" } }, React.createElement("input", { type:"checkbox", checked:specs.includes(item), onChange:()=>toggleSpec(item), style:{ accentColor:T[500] } }), item))),
+      React.createElement(FSec, { title:"Languages" }),
+      React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 } }, LANG_OPTS.map(item => React.createElement("label", { key:item, style:{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:G[700], cursor:"pointer" } }, React.createElement("input", { type:"checkbox", checked:langs.includes(item), onChange:()=>toggleLang(item), style:{ accentColor:T[500] } }), item)))
+    );
+
+    const BodyDoctor = () => React.createElement(React.Fragment, null,
+      React.createElement(FSec, { title:"Professional Info" }),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Full name", req:true }, React.createElement(FInput, { val:form.name||"", onChange:set("name"), ph:"Dr. / Dra. Nombre Apellido", err:err.name })), React.createElement(FField, { label:"Medical license", req:true }, React.createElement(FInput, { val:form.license||"", onChange:set("license"), ph:"e.g. 123-45", err:err.license }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Specialty", req:true }, React.createElement(FSelect, { val:form.specialty||"", onChange:set("specialty"), options:["\u2014 Select \u2014",...SPEC_OPTS_DOC] })), React.createElement(FField, { label:"Subspecialty" }, React.createElement(FInput, { val:form.subspecialty||"", onChange:set("subspecialty"), ph:"e.g. Facial aesthetics" }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Years of experience" }, React.createElement(FInput, { val:form.exp||"", onChange:set("exp"), ph:"8", type:"number" })), React.createElement(FField, { label:"Main clinic" }, React.createElement(FInput, { val:form.clinic||"", onChange:set("clinic"), ph:"Clinic name" }))),
+      React.createElement(FSec, { title:"Languages" }),
+      React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:14 } }, LANG_OPTS.map(item => React.createElement("label", { key:item, style:{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:G[700], cursor:"pointer" } }, React.createElement("input", { type:"checkbox", checked:langs.includes(item), onChange:()=>toggleLang(item), style:{ accentColor:T[500] } }), item))),
+      React.createElement(FSec, { title:"Bio" }),
+      React.createElement(FTextarea, { val:form.bio||"", onChange:set("bio"), ph:"Brief professional biography visible to patients...", rows:3 })
+    );
+
+    const BodyHome = () => React.createElement(React.Fragment, null,
+      React.createElement(FSec, { title:"Identification" }),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Name", req:true }, React.createElement(FInput, { val:form.name||"", onChange:set("name"), ph:"Villa Serena", err:err.name })), React.createElement(FField, { label:"Manager" }, React.createElement(FInput, { val:form.manager||"", onChange:set("manager"), ph:"Full name" }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Address" }, React.createElement(FInput, { val:form.address||"", onChange:set("address"), ph:"Street and number" })), React.createElement(FField, { label:"Sector" }, React.createElement(FInput, { val:form.sector||"", onChange:set("sector"), ph:"Piantini" }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"City", req:true }, React.createElement(FInput, { val:form.city||"", onChange:set("city"), ph:"Santo Domingo", err:err.city })), React.createElement(FField, { label:"Phone", req:true }, React.createElement(FInput, { val:form.phone||"", onChange:set("phone"), ph:"+1 809 000 0000", err:err.phone }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Email" }, React.createElement(FInput, { val:form.email||"", onChange:set("email"), ph:"info@home.com", type:"email" })), React.createElement(FField, { label:"Rate per night" }, React.createElement(FInput, { val:form.rate||"", onChange:set("rate"), ph:"$200/night" }))),
+      React.createElement(FRow, { cols:3 }, React.createElement(FField, { label:"Total beds" }, React.createElement(FInput, { val:form.beds||"", onChange:set("beds"), ph:"6", type:"number" })), React.createElement(FField, { label:"Staff model" }, React.createElement(FSelect, { val:form.staff||"Shift", onChange:set("staff"), options:["Shift","On-call","Resident","None"] })), React.createElement(FField, { label:"Emergency clinic" }, React.createElement(FInput, { val:form.emergency_clinic||"", onChange:set("emergency_clinic"), ph:"Cl\u00ednica Vida" })))
+    );
+
+    const BodyCoord = () => React.createElement(React.Fragment, null,
+      React.createElement(FSec, { title:"Personal Information" }),
+      React.createElement(FRow, null, React.createElement(FField, { label:"First name", req:true }, React.createElement(FInput, { val:form.fn||"", onChange:set("fn"), ph:"Ana", err:err.fn })), React.createElement(FField, { label:"Last name", req:true }, React.createElement(FInput, { val:form.ln||"", onChange:set("ln"), ph:"Rodriguez", err:err.ln }))),
+      React.createElement(FRow, null, React.createElement(FField, { label:"Email", req:true }, React.createElement(FInput, { val:form.email||"", onChange:set("email"), ph:"ana@praesenti.com", type:"email", err:err.email })), React.createElement(FField, { label:"Phone" }, React.createElement(FInput, { val:form.phone||"", onChange:set("phone"), ph:"+1 809 555 0123" }))),
+      React.createElement(FSec, { title:"Languages" }),
+      React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 } }, LANG_OPTS.map(item => React.createElement("label", { key:item, style:{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:G[700], cursor:"pointer" } }, React.createElement("input", { type:"checkbox", checked:langs.includes(item), onChange:()=>toggleLang(item), style:{ accentColor:T[500] } }), item)))
+    );
+
+    return React.createElement(Modal, { open: !!modal, onClose: closeModal, wide: true },
+      React.createElement("div", { style:{ padding:"28px 28px 0" } },
+        React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 } },
+          React.createElement("h2", { style:{ fontFamily:serif, fontSize:22, color:T[950] } }, titles[modal]),
+          React.createElement("button", { onClick:closeModal, style:{ background:"none", border:"none", cursor:"pointer", padding:4 } }, React.createElement(Icon, { name:"close", size:18, color:G[400] }))
+        )
+      ),
+      React.createElement("div", { style:{ padding:"0 28px 28px", maxHeight:"70vh", overflowY:"auto" } },
+        modal === "clinic" && React.createElement(BodyClinic, null),
+        modal === "doctor" && React.createElement(BodyDoctor, null),
+        modal === "home" && React.createElement(BodyHome, null),
+        modal === "coord" && React.createElement(BodyCoord, null),
+        Object.keys(err).length > 0 && React.createElement("p", { style:{ fontSize:12.5, color:"#dc2626", marginTop:12 } }, "\u2715 Please fill in all required fields."),
+        React.createElement("div", { style:{ display:"flex", gap:10, marginTop:24 } },
+          React.createElement("button", { onClick:handleSave, disabled:saving, style:{ ...s.btnPrimary, padding:"11px 28px", fontSize:13, opacity:saving?0.7:1 } }, saving?"Saving\u2026":"Save"),
+          React.createElement("button", { onClick:closeModal, style:{ ...s.btnGhost, padding:"11px 20px", fontSize:13 } }, "Cancel")
+        )
+      )
+    );
+  };
+
+  return React.createElement("div", { style: { fontFamily: sans, background: G[50], minHeight: "100vh" } },
+    toast && React.createElement(Toast, { msg: toast, onDone: () => setToast(null) }),
+    modal && React.createElement(AddModal, null),
+    React.createElement("div", { className: "dash-header", style: { height: 60, background: "#fff", borderBottom: `1px solid ${G[200]}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 50 } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+        React.createElement("button", { className: "mobile-menu-btn", onClick: () => setSidebarOpen(o => !o), style: { background: "none", border: "none", cursor: "pointer", padding: 6, display: "flex", alignItems: "center" } }, React.createElement(HamburgerIcon, { color: "#374151" })),
+        React.createElement("div", { style: { fontFamily: serif, fontSize: 19, fontWeight: 600, color: T[900], letterSpacing: "0.06em", textTransform: "uppercase" } }, "Praes", React.createElement("span", { style: { color: T[500] } }, "enti")),
+        React.createElement("span", { className: "col-hide-xs", style: { fontSize: 11, fontWeight: 500, color: T[500], letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 6 } }, "Admin")
+      ),
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 16 } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: G[700] } },
+          React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: T[700], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 14, fontWeight: 600, color: T[200] } }, "P"),
+          React.createElement("span", { className: "col-hide-xs" }, "Admin")
+        ),
+        React.createElement("button", { onClick: onSignOut, style: { background: "none", border: `1px solid ${G[200]}`, color: G[500], padding: "6px 14px", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: sans } }, "Sign out")
+      )
+    ),
+    React.createElement("div", { style: { display: "flex", minHeight: "calc(100vh - 60px)", overflow: "hidden" } },
+      React.createElement(AdminSidebar, null),
+      React.createElement("div", { className: "dash-layout-inner", style: { flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" } },
+        screen === "overview" && React.createElement(AdminOverview, null),
+        screen === "case" && React.createElement(AdminCaseDetail, null),
+        screen === "pipeline" && React.createElement(PipelineScreen, null),
+        screen === "incidents" && React.createElement(IncidentsScreen, null),
+        screen === "providers" && React.createElement(ProvidersScreen, null),
+        screen === "clinics" && React.createElement(ClinicsScreen, null),
+        screen === "doctors" && React.createElement(DoctorsScreen, null),
+        screen === "homes" && React.createElement(HomesScreen, null),
+        screen === "coordinators" && React.createElement(CoordinatorsScreen, null),
+        screen === "finance-payments" && React.createElement(FinancePaymentsScreen, null),
+        screen === "escrow" && React.createElement(EscrowScreen, null),
+        screen === "reports" && React.createElement(ReportsScreen, null)
+      )
     )
   );
-  const LANG_OPTS = ["Espa\u00f1ol","Ingl\u00e9s","Portugu\u00e9s","Franc\u00e9s","Italiano","Alem\u00e1n"];
-  const PROC_OPTS = ["Rinoplastia","Aumento de busto","Liposucci\u00f3n","Abdominoplastia","Lifting facial","Cirug\u00eda bari\u00e1trica","Trasplante capilar","Veneers dentales","Cirug\u00eda reconstructiva","Reemplazo de cadera","Cirug\u00eda ocular"];
-  const INCLUDES_OPTS = ["WiFi","Alimentaci\u00f3n 3 comidas","Desayuno incluido","AC","Piscina","Transporte a cl\u00ednica","Lavander\u00eda","TV","Estacionamiento","Sala com\u00fan"];
-
-  // \u2500\u2500 FORM: RECOVERY HOME \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  const FormRecoveryHome = () => {
-    const [form, setForm] = React.useState({ name:"", address:"", sector:"", city:"", phone:"", email:"", manager:"", total_beds:"", rate_without:"", rate_with:"", staff_model:"Turno", staff_schedule:"", emergency_clinic:"", emergency_protocol:"" });
-    const [includes, setIncludes] = React.useState([]);
-    const [langs, setLangs] = React.useState([]);
-    const [err, setErr] = React.useState({});
-    const [saving, setSaving] = React.useState(false);
-    const [saved, setSaved] = React.useState(false);
-    const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
-    const validate = () => { const e={}; if(!form.name.trim())e.name=true; if(!form.city.trim())e.city=true; if(!form.phone.trim())e.phone=true; setErr(e); return Object.keys(e).length===0; };
-    const handleSave = async () => { if(!validate())return; setSaving(true); await new Promise(r=>setTimeout(r,600)); setSaving(false); setSaved(true); };
-    if(saved) return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } }, React.createElement(FormSuccess, { title:"Recovery home registrado", body:`"${form.name}" fue agregado a la red.`, onNew:()=>{ setForm({ name:"", address:"", sector:"", city:"", phone:"", email:"", manager:"", total_beds:"", rate_without:"", rate_with:"", staff_model:"Turno", staff_schedule:"", emergency_clinic:"", emergency_protocol:"" }); setIncludes([]); setLangs([]); setErr({}); setSaved(false); }, onBack:()=>navTo("Recovery Homes","homes"), backLabel:"Ver Recovery Homes" }));
-    return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto", maxWidth:860 } },
-      React.createElement(PanelHeader, { title:"Nuevo Recovery Home", subtitle:"Completa la informaci\u00f3n para agregar una instalaci\u00f3n a la red" }),
-      React.createElement("div", { style:s.card },
-        React.createElement(FSec, { title:"Identificaci\u00f3n" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Nombre", req:true }, React.createElement(FInput, { val:form.name, onChange:set("name"), ph:"Villa Serena", err:err.name })), React.createElement(FField, { label:"Responsable" }, React.createElement(FInput, { val:form.manager, onChange:set("manager"), ph:"Nombre completo" }))),
-        React.createElement(FSec, { title:"Ubicaci\u00f3n" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Direcci\u00f3n" }, React.createElement(FInput, { val:form.address, onChange:set("address"), ph:"Calle y n\u00famero" })), React.createElement(FField, { label:"Sector" }, React.createElement(FInput, { val:form.sector, onChange:set("sector"), ph:"Piantini" }))),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Ciudad", req:true }, React.createElement(FInput, { val:form.city, onChange:set("city"), ph:"Santo Domingo", err:err.city }))),
-        React.createElement(FSec, { title:"Contacto" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Tel\u00e9fono", req:true }, React.createElement(FInput, { val:form.phone, onChange:set("phone"), ph:"+1 809 000 0000", err:err.phone })), React.createElement(FField, { label:"Email" }, React.createElement(FInput, { val:form.email, onChange:set("email"), ph:"info@ejemplo.com", type:"email" }))),
-        React.createElement(FSec, { title:"Capacidad y tarifas" }),
-        React.createElement(FRow, { cols:3 }, React.createElement(FField, { label:"Camas" }, React.createElement(FInput, { val:form.total_beds, onChange:set("total_beds"), ph:"6", type:"number" })), React.createElement(FField, { label:"Tarifa sin enfermer\u00eda" }, React.createElement(FInput, { val:form.rate_without, onChange:set("rate_without"), ph:"$150/noche" })), React.createElement(FField, { label:"Tarifa con enfermer\u00eda" }, React.createElement(FInput, { val:form.rate_with, onChange:set("rate_with"), ph:"$250/noche" }))),
-        React.createElement(FSec, { title:"\u00bfQu\u00e9 incluye?" }),
-        React.createElement(FChk, { items:INCLUDES_OPTS, checked:includes, toggle:v=>setIncludes(p=>p.includes(v)?p.filter(x=>x!==v):[...p,v]) }),
-        React.createElement(FSec, { title:"Personal" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Modelo" }, React.createElement(FSelect, { val:form.staff_model, onChange:set("staff_model"), options:["Turno","On-call","Residente","Sin personal"] })), React.createElement(FField, { label:"Horario" }, React.createElement(FInput, { val:form.staff_schedule, onChange:set("staff_schedule"), ph:"Enfermera 12h diurnas" }))),
-        React.createElement("div", { style:{ marginBottom:14 } }, React.createElement(FLbl, { t:"Idiomas del personal" }), React.createElement(FChk, { items:LANG_OPTS, checked:langs, toggle:v=>setLangs(p=>p.includes(v)?p.filter(x=>x!==v):[...p,v]), cols:3 })),
-        React.createElement(FSec, { title:"Emergencias" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Cl\u00ednica de referencia" }, React.createElement(FInput, { val:form.emergency_clinic, onChange:set("emergency_clinic"), ph:"Nombre de la cl\u00ednica" }))),
-        React.createElement("div", { style:{ marginBottom:20 } }, React.createElement(FLbl, { t:"Protocolo de emergencias" }), React.createElement(FTextarea, { val:form.emergency_protocol, onChange:set("emergency_protocol"), ph:"Describe qu\u00e9 hace el personal ante una emergencia m\u00e9dica...", rows:4 })),
-        Object.keys(err).length>0 && React.createElement("p", { style:{ fontSize:12.5, color:"#dc2626", marginBottom:12 } }, "* Completa los campos obligatorios."),
-        React.createElement("div", { style:{ display:"flex", gap:10 } }, React.createElement("button", { onClick:handleSave, disabled:saving, style:{ ...s.btnPrimary, padding:"11px 28px", fontSize:13, opacity:saving?.7:1 } }, saving?"Guardando\u2026":"Guardar recovery home"), React.createElement("button", { onClick:()=>navTo("Recovery Homes","homes"), style:{ ...s.btnGhost, padding:"11px 20px", fontSize:13 } }, "Cancelar"))
-      )
-    );
-  };
-
-  // \u2500\u2500 FORM: CL\u00cdNICA \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  const FormClinica = () => {
-    const [form, setForm] = React.useState({ name:"", address:"", sector:"", city:"", phone:"", email:"", contact_name:"", contact_title:"", certifications:"" });
-    const [specialties, setSpecialties] = React.useState([]);
-    const [langs, setLangs] = React.useState([]);
-    const [procs, setProcs] = React.useState([{ name:"", price_range:"" }]);
-    const [err, setErr] = React.useState({});
-    const [saving, setSaving] = React.useState(false);
-    const [saved, setSaved] = React.useState(false);
-    const SPEC_OPTS = ["Cirug\u00eda pl\u00e1stica","Cirug\u00eda bari\u00e1trica","Odontolog\u00eda est\u00e9tica","Oftalmolog\u00eda","Trasplante capilar","Ortopedia","Medicina general"];
-    const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
-    const setProc = (i,k,v) => setProcs(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
-    const validate = () => { const e={}; if(!form.name.trim())e.name=true; if(!form.city.trim())e.city=true; if(!form.phone.trim())e.phone=true; setErr(e); return Object.keys(e).length===0; };
-    const handleSave = async () => { if(!validate())return; setSaving(true); await new Promise(r=>setTimeout(r,600)); setSaving(false); setSaved(true); };
-    if(saved) return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } }, React.createElement(FormSuccess, { title:"Cl\u00ednica registrada", body:`"${form.name}" fue agregada a la red de proveedores.`, onNew:()=>{ setForm({ name:"", address:"", sector:"", city:"", phone:"", email:"", contact_name:"", contact_title:"", certifications:"" }); setSpecialties([]); setLangs([]); setProcs([{name:"",price_range:""}]); setErr({}); setSaved(false); }, onBack:()=>navTo("Providers","providers"), backLabel:"Ver Providers" }));
-    return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto", maxWidth:860 } },
-      React.createElement(PanelHeader, { title:"Nueva Cl\u00ednica", subtitle:"Registra una cl\u00ednica en la red de proveedores verificados" }),
-      React.createElement("div", { style:s.card },
-        React.createElement(FSec, { title:"Identificaci\u00f3n" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Nombre oficial", req:true }, React.createElement(FInput, { val:form.name, onChange:set("name"), ph:"Cl\u00ednica Vida", err:err.name })), React.createElement(FField, { label:"Certificaciones" }, React.createElement(FInput, { val:form.certifications, onChange:set("certifications"), ph:"JCI, ABPS (separadas por comas)" }))),
-        React.createElement(FSec, { title:"Ubicaci\u00f3n" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Direcci\u00f3n" }, React.createElement(FInput, { val:form.address, onChange:set("address"), ph:"Av. Principal 123" })), React.createElement(FField, { label:"Sector" }, React.createElement(FInput, { val:form.sector, onChange:set("sector"), ph:"Piantini" }))),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Ciudad", req:true }, React.createElement(FInput, { val:form.city, onChange:set("city"), ph:"Santo Domingo", err:err.city }))),
-        React.createElement(FSec, { title:"Contacto" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Tel\u00e9fono", req:true }, React.createElement(FInput, { val:form.phone, onChange:set("phone"), ph:"+1 809 000 0000", err:err.phone })), React.createElement(FField, { label:"Email" }, React.createElement(FInput, { val:form.email, onChange:set("email"), ph:"admin@clinica.com", type:"email" }))),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Nombre del contacto" }, React.createElement(FInput, { val:form.contact_name, onChange:set("contact_name"), ph:"Nombre completo" })), React.createElement(FField, { label:"Cargo" }, React.createElement(FInput, { val:form.contact_title, onChange:set("contact_title"), ph:"Director/a m\u00e9dico/a" }))),
-        React.createElement(FSec, { title:"Especialidades" }),
-        React.createElement(FChk, { items:SPEC_OPTS, checked:specialties, toggle:v=>setSpecialties(p=>p.includes(v)?p.filter(x=>x!==v):[...p,v]) }),
-        React.createElement(FSec, { title:"Idiomas" }),
-        React.createElement(FChk, { items:LANG_OPTS, checked:langs, toggle:v=>setLangs(p=>p.includes(v)?p.filter(x=>x!==v):[...p,v]), cols:3 }),
-        React.createElement(FSec, { title:"Procedimientos y precios base" }),
-        procs.map((p,i) => React.createElement("div", { key:i, style:{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:10, marginBottom:10, alignItems:"end" } },
-          React.createElement("div", null, i===0&&React.createElement(FLbl,{t:"Procedimiento"}), React.createElement(FSelect, { val:p.name, onChange:e=>setProc(i,"name",e.target.value), options:["\u2014 Seleccionar \u2014",...PROC_OPTS] })),
-          React.createElement("div", null, i===0&&React.createElement(FLbl,{t:"Rango de precio"}), React.createElement(FInput, { val:p.price_range, onChange:e=>setProc(i,"price_range",e.target.value), ph:"$3,000 \u2013 $5,500" })),
-          React.createElement("button", { onClick:()=>setProcs(p=>p.filter((_,j)=>j!==i)), style:{ height:40, padding:"0 12px", border:`1px solid ${G[200]}`, borderRadius:7, background:"#fff", color:G[500], cursor:"pointer", fontSize:18 } }, "\u00d7")
-        )),
-        React.createElement("button", { onClick:()=>setProcs(p=>[...p,{name:"",price_range:""}]), style:{ ...s.btnGhost, fontSize:12, padding:"8px 16px", marginBottom:20 } }, "+ Agregar procedimiento"),
-        Object.keys(err).length>0 && React.createElement("p", { style:{ fontSize:12.5, color:"#dc2626", marginBottom:12 } }, "* Completa los campos obligatorios."),
-        React.createElement("div", { style:{ display:"flex", gap:10 } }, React.createElement("button", { onClick:handleSave, disabled:saving, style:{ ...s.btnPrimary, padding:"11px 28px", fontSize:13, opacity:saving?.7:1 } }, saving?"Guardando\u2026":"Guardar cl\u00ednica"), React.createElement("button", { onClick:()=>navTo("Providers","providers"), style:{ ...s.btnGhost, padding:"11px 20px", fontSize:13 } }, "Cancelar"))
-      )
-    );
-  };
-
-  // \u2500\u2500 FORM: M\u00c9DICO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  const FormDoctor = () => {
-    const [form, setForm] = React.useState({ name:"", specialty:"", subspecialty:"", license:"", experience_years:"", bio:"" });
-    const [langs, setLangs] = React.useState([]);
-    const [procs, setProcs] = React.useState([]);
-    const [clinics, setClinics] = React.useState([""]);
-    const [err, setErr] = React.useState({});
-    const [saving, setSaving] = React.useState(false);
-    const [saved, setSaved] = React.useState(false);
-    const SPEC_OPTS = ["Cirug\u00eda pl\u00e1stica","Cirug\u00eda bari\u00e1trica","Odontolog\u00eda est\u00e9tica","Oftalmolog\u00eda","Trasplante capilar","Ortopedia","Anestesiolog\u00eda","Medicina interna"];
-    const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
-    const validate = () => { const e={}; if(!form.name.trim())e.name=true; if(!form.license.trim())e.license=true; if(!form.specialty)e.specialty=true; setErr(e); return Object.keys(e).length===0; };
-    const handleSave = async () => { if(!validate())return; setSaving(true); await new Promise(r=>setTimeout(r,600)); setSaving(false); setSaved(true); };
-    if(saved) return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } }, React.createElement(FormSuccess, { title:"M\u00e9dico registrado", body:`"${form.name}" fue agregado a la red de proveedores.`, onNew:()=>{ setForm({ name:"", specialty:"", subspecialty:"", license:"", experience_years:"", bio:"" }); setLangs([]); setProcs([]); setClinics([""]); setErr({}); setSaved(false); }, onBack:()=>navTo("Providers","providers"), backLabel:"Ver Providers" }));
-    return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto", maxWidth:860 } },
-      React.createElement(PanelHeader, { title:"Nuevo M\u00e9dico", subtitle:"Registra un m\u00e9dico en la red de proveedores verificados" }),
-      React.createElement("div", { style:s.card },
-        React.createElement(FSec, { title:"Datos profesionales" }),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Nombre completo", req:true }, React.createElement(FInput, { val:form.name, onChange:set("name"), ph:"Dr. / Dra. Nombre Apellido", err:err.name })), React.createElement(FField, { label:"Licencia m\u00e9dica", req:true }, React.createElement(FInput, { val:form.license, onChange:set("license"), ph:"Ej: 123-45", err:err.license }))),
-        React.createElement(FRow, null, React.createElement(FField, { label:"Especialidad", req:true }, React.createElement(FSelect, { val:form.specialty, onChange:set("specialty"), options:["\u2014 Seleccionar \u2014",...SPEC_OPTS] })), React.createElement(FField, { label:"Subespecialidad" }, React.createElement(FInput, { val:form.subspecialty, onChange:set("subspecialty"), ph:"Ej: Cirug\u00eda est\u00e9tica facial" }))),
-        React.createElement(FRow, null, React.createElement(FField, { label:"A\u00f1os de experiencia" }, React.createElement(FInput, { val:form.experience_years, onChange:set("experience_years"), ph:"6", type:"number" }))),
-        React.createElement(FSec, { title:"Cl\u00ednicas donde opera" }),
-        clinics.map((c,i) => React.createElement("div", { key:i, style:{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, marginBottom:10 } },
-          React.createElement(FInput, { val:c, onChange:e=>setClinics(p=>p.map((x,j)=>j===i?e.target.value:x)), ph:"Nombre de la cl\u00ednica" }),
-          clinics.length>1 && React.createElement("button", { onClick:()=>setClinics(p=>p.filter((_,j)=>j!==i)), style:{ height:40, padding:"0 12px", border:`1px solid ${G[200]}`, borderRadius:7, background:"#fff", color:G[500], cursor:"pointer", fontSize:18 } }, "\u00d7")
-        )),
-        React.createElement("button", { onClick:()=>setClinics(p=>[...p,""]), style:{ ...s.btnGhost, fontSize:12, padding:"8px 16px", marginBottom:20 } }, "+ Agregar cl\u00ednica"),
-        React.createElement(FSec, { title:"Idiomas" }),
-        React.createElement(FChk, { items:LANG_OPTS, checked:langs, toggle:v=>setLangs(p=>p.includes(v)?p.filter(x=>x!==v):[...p,v]), cols:3 }),
-        React.createElement(FSec, { title:"Procedimientos que realiza" }),
-        React.createElement(FChk, { items:PROC_OPTS, checked:procs, toggle:v=>setProcs(p=>p.includes(v)?p.filter(x=>x!==v):[...p,v]) }),
-        React.createElement(FSec, { title:"Biograf\u00eda profesional" }),
-        React.createElement("div", { style:{ marginBottom:20 } }, React.createElement(FLbl, { t:"Bio breve (visible para pacientes)" }), React.createElement(FTextarea, { val:form.bio, onChange:set("bio"), ph:"Describe la trayectoria y enfoque del m\u00e9dico...", rows:4 })),
-        Object.keys(err).length>0 && React.createElement("p", { style:{ fontSize:12.5, color:"#dc2626", marginBottom:12 } }, "* Completa los campos obligatorios."),
-        React.createElement("div", { style:{ display:"flex", gap:10 } }, React.createElement("button", { onClick:handleSave, disabled:saving, style:{ ...s.btnPrimary, padding:"11px 28px", fontSize:13, opacity:saving?.7:1 } }, saving?"Guardando\u2026":"Guardar m\u00e9dico"), React.createElement("button", { onClick:()=>navTo("Providers","providers"), style:{ ...s.btnGhost, padding:"11px 20px", fontSize:13 } }, "Cancelar"))
-      )
-    );
-  };
-
-  return /* @__PURE__ */ React.createElement("div", { style: { fontFamily: sans, background: G[50], minHeight: "100vh" } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast, onDone: () => setToast(null) }), /* @__PURE__ */ React.createElement("div", { className: "dash-header", style: { height: 60, background: "#fff", borderBottom: `1px solid ${G[200]}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: serif, fontSize: 19, fontWeight: 600, color: T[900], letterSpacing: "0.06em", textTransform: "uppercase" } }, "Praes", /* @__PURE__ */ React.createElement("span", { style: { color: T[500] } }, "enti")), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: 500, color: T[500], letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 6 } }, "Admin")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: G[700] } }, /* @__PURE__ */ React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: T[700], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 14, fontWeight: 600, color: T[200] } }, "P"), "Admin"), /* @__PURE__ */ React.createElement("button", { onClick: onSignOut, style: { background: "none", border: `1px solid ${G[200]}`, color: G[500], padding: "6px 14px", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: sans } }, "Sign out"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", minHeight: "calc(100vh - 60px)", overflow: "hidden" } }, /* @__PURE__ */ React.createElement(AdminSidebar, null), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" } }, screen === "overview" && /* @__PURE__ */ React.createElement(AdminOverview, null), screen === "case" && /* @__PURE__ */ React.createElement(AdminCaseDetail, null), screen === "pipeline" && /* @__PURE__ */ React.createElement(PipelineScreen, null), screen === "incidents" && /* @__PURE__ */ React.createElement(IncidentsScreen, null), screen === "providers" && /* @__PURE__ */ React.createElement(ProvidersScreen, null), screen === "form-clinic" && React.createElement(FormClinica, null), screen === "form-doctor" && React.createElement(FormDoctor, null), screen === "homes" && /* @__PURE__ */ React.createElement(HomesScreen, null), screen === "form-home" && React.createElement(FormRecoveryHome, null), screen === "coordinators" && /* @__PURE__ */ React.createElement(CoordinatorsScreen, null), screen === "finance-payments" && /* @__PURE__ */ React.createElement(FinancePaymentsScreen, null), screen === "escrow" && /* @__PURE__ */ React.createElement(EscrowScreen, null), screen === "reports" && /* @__PURE__ */ React.createElement(ReportsScreen, null))));
 };

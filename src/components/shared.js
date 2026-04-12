@@ -91,7 +91,7 @@ export const Toast = ({ msg, onDone }) => {
   return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: T[900], color: "#fff", padding: "12px 22px", borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,.25)", whiteSpace: "nowrap" } }, msg);
 };
 
-export const Modal = ({ open, onClose, children, wide }) => {
+export const Modal = ({ open, onClose, children, wide, disableBackdropClose }) => {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -99,7 +99,7 @@ export const Modal = ({ open, onClose, children, wide }) => {
     };
   }, [open]);
   if (!open) return null;
-  return /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.target === e.currentTarget && onClose(), className: "modal-backdrop", style: { position: "fixed", inset: 0, zIndex: 300, background: "rgba(6,31,29,.88)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-inner", style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: wide ? 540 : 480, maxHeight: "92vh", overflowY: "auto" } }, children));
+  return /* @__PURE__ */ React.createElement("div", { onClick: (e) => { if (!disableBackdropClose && e.target === e.currentTarget) onClose(); }, className: "modal-backdrop", style: { position: "fixed", inset: 0, zIndex: 300, background: "rgba(6,31,29,.88)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-inner", style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: wide ? 540 : 480, maxHeight: "92vh", overflowY: "auto" } }, children));
 };
 
 export const IR = ({ k, v, vc }) => /* @__PURE__ */ React.createElement("div", { style: s.infoRow }, /* @__PURE__ */ React.createElement("span", { style: { color: G[500], fontWeight: 300 } }, k), /* @__PURE__ */ React.createElement("span", { style: { color: vc || G[900], fontWeight: 500, textAlign: "right" } }, v));

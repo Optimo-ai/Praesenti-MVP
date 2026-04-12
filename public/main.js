@@ -254,7 +254,7 @@ const Toast = ({ msg, onDone }) => {
   }, []);
   return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: T[900], color: "#fff", padding: "12px 22px", borderRadius: 10, fontSize: 13, fontWeight: 500, zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,.25)", whiteSpace: "nowrap" } }, msg);
 };
-const Modal = ({ open, onClose, children, wide }) => {
+const Modal = ({ open, onClose, children, wide, disableBackdropClose }) => {
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -262,14 +262,14 @@ const Modal = ({ open, onClose, children, wide }) => {
     };
   }, [open]);
   if (!open) return null;
-  return /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.target === e.currentTarget && onClose(), className: "modal-backdrop", style: { position: "fixed", inset: 0, zIndex: 300, background: "rgba(6,31,29,.88)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-inner", style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: wide ? 540 : 480, maxHeight: "92vh", overflowY: "auto" } }, children));
+  return /* @__PURE__ */ React.createElement("div", { onClick: (e) => { if (!disableBackdropClose && e.target === e.currentTarget) onClose(); }, className: "modal-backdrop", style: { position: "fixed", inset: 0, zIndex: 300, background: "rgba(6,31,29,.88)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-inner", style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: wide ? 540 : 480, maxHeight: "92vh", overflowY: "auto" } }, children));
 };
 const IR = ({ k, v, vc }) => /* @__PURE__ */ React.createElement("div", { style: s.infoRow }, /* @__PURE__ */ React.createElement("span", { style: { color: G[500], fontWeight: 300 } }, k), /* @__PURE__ */ React.createElement("span", { style: { color: vc || G[900], fontWeight: 500, textAlign: "right" } }, v));
 const WZ_LBLS = ["", "Your information", "What you're looking for", "Your health", "Preferences", "Review & confirm"];
 const WZ_HNTS = ["", "No commitment required", "Takes about 30 seconds", "Your data is fully secure", "Almost done", "Review and submit"];
 const PROCS_LIST = ["Rhinoplasty", "Breast Augmentation", "Liposuction", "Tummy Tuck", "Hair Transplant", "Dental Veneers", "Bariatric Surgery", "Hip Replacement", "Eye Surgery", "Other"];
 const HEALTH_OPTS = ["Diabetes", "Hypertension", "Heart condition", "Asthma", "None of the above"];
-const WzFi = ({ type = "text", ph, val, onChange }) => /* @__PURE__ */ React.createElement("input", { type, value: val, onChange, placeholder: ph, style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } });
+const WzFi = ({ type = "text", ph, val, onChange, err }) => /* @__PURE__ */ React.createElement("input", { type, value: val, onChange, placeholder: ph, style: { width: "100%", height: 42, border: `1px solid ${err ? "#fca5a5" : G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: err ? "#fffafb" : "#fff" } });
 const WzLbl = ({ t }) => /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, t);
 const SuFi = ({ type = "text", ph, val, onChange, err, onEnter }) => /* @__PURE__ */ React.createElement("input", { type, value: val, onChange, placeholder: ph, onKeyDown: (e) => e.key === "Enter" && onEnter && onEnter(), style: { width: "100%", height: 42, border: `1px solid ${err ? "#fca5a5" : G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } });
 const SuLbl = ({ t }) => /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, t);
@@ -282,6 +282,7 @@ const Wizard = ({ open, onClose, prefill, onComplete }) => {
   const [cons, setCons] = useState({ c1: false, c2: false });
   const [form, setForm] = useState({ fn: "", ln: "", email: "", country: "", lang: "English", phone: "" });
   const [cErr, setCErr] = useState(false);
+  const [wizErr, setWizErr] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   useEffect(() => {
     if (open && prefill) {
@@ -290,6 +291,14 @@ const Wizard = ({ open, onClose, prefill, onComplete }) => {
   }, [open, prefill]);
   const pct = Math.round(Math.min(step, 5) / 5 * 100);
   const next = () => {
+    if (step === 1) {
+      if (!form.fn.trim() || !form.ln.trim() || !form.email.includes("@") || !form.country) {
+        setWizErr(true);
+        return;
+      }
+    }
+    if (step === 2 && !proc) return;
+    if (step === 4 && (!pref.rh || !pref.cp)) return;
     if (step === 5) {
       if (!cons.c1 || !cons.c2) {
         setCErr(true);
@@ -324,7 +333,7 @@ const Wizard = ({ open, onClose, prefill, onComplete }) => {
   };
   const body = () => {
     if (submitted) return /* @__PURE__ */ React.createElement("div", { style: { padding: "48px 36px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 64, height: 64, borderRadius: "50%", background: T[50], border: `2px solid ${T[200]}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" } }, /* @__PURE__ */ React.createElement(Icon, { name: "leaf", size: 28, color: T[600] })), /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: serif, fontSize: 28, color: T[900], marginBottom: 12 } }, "You're on your way"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: G[500], lineHeight: 1.8, marginBottom: 8 } }, "Taking you to your dashboard\u2026"), /* @__PURE__ */ React.createElement("div", { style: { width: 40, height: 3, background: T[200], borderRadius: 3, margin: "16px auto 0", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", background: T[500], borderRadius: 3, animation: "progressBar 2.2s linear forwards" } })), /* @__PURE__ */ React.createElement("style", null, `@keyframes progressBar { from { width:0 } to { width:100% } }`));
-    if (step === 1) return /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "First name" }), /* @__PURE__ */ React.createElement(WzFi, { ph: "Jane", val: form.fn, onChange: (e) => setForm((f) => ({ ...f, fn: e.target.value })) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "Last name" }), /* @__PURE__ */ React.createElement(WzFi, { ph: "Smith", val: form.ln, onChange: (e) => setForm((f) => ({ ...f, ln: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "1/-1" } }, /* @__PURE__ */ React.createElement(WzLbl, { t: "Email address" }), /* @__PURE__ */ React.createElement(WzFi, { type: "email", ph: "you@email.com", val: form.email, onChange: (e) => setForm((f) => ({ ...f, email: e.target.value })) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "Country of residence" }), /* @__PURE__ */ React.createElement(WzFi, { ph: "USA", val: form.country, onChange: (e) => setForm((f) => ({ ...f, country: e.target.value })) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "Phone (optional)" }), /* @__PURE__ */ React.createElement(WzFi, { type: "tel", ph: "+1 555 000 000", val: form.phone, onChange: (e) => setForm((f) => ({ ...f, phone: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "1/-1" } }, /* @__PURE__ */ React.createElement(WzLbl, { t: "Preferred language" }), /* @__PURE__ */ React.createElement("select", { value: form.lang, onChange: (e) => setForm((f) => ({ ...f, lang: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, ["English", "Espa\xF1ol", "Fran\xE7ais", "Deutsch", "Portugu\xEAs"].map((l) => /* @__PURE__ */ React.createElement("option", { key: l }, l)))));
+    if (step === 1) return /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "First name" }), /* @__PURE__ */ React.createElement(WzFi, { ph: "Jane", val: form.fn, err: wizErr && !form.fn.trim(), onChange: (e) => { setForm((f) => ({ ...f, fn: e.target.value })); setWizErr(false); } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "Last name" }), /* @__PURE__ */ React.createElement(WzFi, { ph: "Smith", val: form.ln, err: wizErr && !form.ln.trim(), onChange: (e) => { setForm((f) => ({ ...f, ln: e.target.value })); setWizErr(false); } })), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "1/-1" } }, /* @__PURE__ */ React.createElement(WzLbl, { t: "Email address" }), /* @__PURE__ */ React.createElement(WzFi, { type: "email", ph: "you@email.com", val: form.email, err: wizErr && (!form.email || !form.email.includes("@")), onChange: (e) => { setForm((f) => ({ ...f, email: e.target.value })); setWizErr(false); } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "Country of residence" }), /* @__PURE__ */ React.createElement("select", { value: form.country, onChange: (e) => { setForm((f) => ({ ...f, country: e.target.value })); setWizErr(false); }, style: { width: "100%", height: 42, border: `1px solid ${wizErr && !form.country ? "#fca5a5" : G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: wizErr && !form.country ? "#fffafb" : "#fff" } }, ["", "United States", "Canada", "United Kingdom", "Australia", "Dominican Republic", "Argentina", "Austria", "Bahamas", "Belgium", "Bolivia", "Brazil", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Czech Republic", "Denmark", "Ecuador", "Egypt", "El Salvador", "Finland", "France", "Germany", "Greece", "Guatemala", "Honduras", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nicaragua", "Norway", "Panama", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "United Arab Emirates", "Uruguay", "Venezuela", "Vietnam", "Other"].map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }, c || "Select a country")))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(WzLbl, { t: "Phone (optional)" }), /* @__PURE__ */ React.createElement(WzFi, { type: "tel", ph: "+1 555 000 000", val: form.phone, onChange: (e) => setForm((f) => ({ ...f, phone: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "1/-1" } }, /* @__PURE__ */ React.createElement(WzLbl, { t: "Preferred language" }), /* @__PURE__ */ React.createElement("select", { value: form.lang, onChange: (e) => setForm((f) => ({ ...f, lang: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Arabic", "Chinese", "Japanese", "Korean", "Russian", "Other"].map((l) => /* @__PURE__ */ React.createElement("option", { key: l, value: l }, l)))));
     if (step === 2) return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Lbl, { t: "Procedure of interest" }), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 24 } }, PROCS_LIST.map((p) => /* @__PURE__ */ React.createElement("div", { key: p, onClick: () => setProc(p), style: { padding: "10px 14px", borderRadius: 8, fontSize: 13, cursor: "pointer", border: `1.5px solid ${proc === p ? T[500] : G[200]}`, background: proc === p ? T[50] : "#fff", color: proc === p ? T[700] : G[700], fontWeight: proc === p ? 500 : 400 } }, p))), /* @__PURE__ */ React.createElement(Lbl, { t: `Estimated budget: $${budget.toLocaleString()}` }), /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -641,7 +650,12 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "P";
   const isDemo = !!(user == null ? void 0 : user.isDemo);
   const isNewUser = !isDemo;
-  const [screen, setScreen] = useState("overview");
+  const [screen, setScreen] = useState(() => {
+    if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+      return "onboarding";
+    }
+    return "overview";
+  });
   const [caseTab, setCaseTab] = useState("journey");
   const [msgs, setMsgs] = useState(INIT_MSGS);
   const [msgInput, setMsgInput] = useState("");
@@ -652,6 +666,7 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const [tcBooked, setTcBooked] = useState(false);
   const [dashWizOpen, setDashWizOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [service, setService] = useState(isDemo ? "Post-op Follow-up" : "Initial Consultation");
 
   // ── Load patient's assigned providers from Supabase ──────────────────
   const [CLINICAS, setCLINICAS] = useState(CLINICAS_PLACEHOLDER);
@@ -681,6 +696,11 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   useEffect(() => {
     if (msgBodyRef.current) msgBodyRef.current.scrollTop = msgBodyRef.current.scrollHeight;
   }, [msgs]);
+  useEffect(() => {
+    if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+      if (screen !== "onboarding") setScreen("onboarding");
+    }
+  }, [screen, user]);
   const showToast = (msg) => setToast(msg);
   const sendMsg = () => {
     if (!msgInput.trim()) return;
@@ -691,6 +711,10 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     setTimeout(() => setMsgs((m) => [...m, { side: "them", text: "Got it! I'll get back to you shortly.", time, date: "Today" }]), 1200);
   };
   const navTo = (item, scr, tab) => {
+    if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+      showToast("Please complete your profile first.");
+      return;
+    }
     const newScr = scr || "overview";
     setSidebarItem(item);
     setScreen(newScr);
@@ -702,6 +726,10 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       safeReplace({ item: sidebarItem, scr: screen, tab: caseTab, dash: "patient" }, "", "#patient/" + screen + (caseTab ? "/" + caseTab : ""));
     }
     const onPop = (e) => {
+      if (user && !user.isDemo && !localStorage.getItem("onboarding_done_" + user.id)) {
+        setScreen("onboarding");
+        return;
+      }
       const st = e.state;
       if (!st || st.dash !== "patient") {
         if (!st) { setScreen("overview"); setSidebarItem("Overview"); }
@@ -739,17 +767,17 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       ["My Profile", "person", () => navTo("My Profile", "profile")],
       ["Payments", "creditCard", () => navTo("Payments", "payments")]
     ]]
-  ];
+  ]);
   const TeleconsultScreen = () => {
     const slots = [
       { day: "Mon Mar 31", times: ["09:00", "10:30", "14:00", "15:30"] },
       { day: "Tue Apr 01", times: ["08:30", "11:00", "13:00", "16:00"] },
       { day: "Wed Apr 02", times: ["09:30", "12:00", "14:30"] }
     ];
-    return /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "Teleconsult Scheduler"), /* @__PURE__ */ React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Book a secure video call with your surgeon or care coordinator"), tcBooked ? /* @__PURE__ */ React.createElement("div", { style: { ...s.card, background: T[50], border: `1px solid ${T[200]}`, textAlign: "center", padding: "40px 28px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 52, height: 52, borderRadius: "50%", background: T[100], border: `2px solid ${T[300]}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 22, color: T[600] })), /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[900], marginBottom: 8 } }, "Appointment confirmed"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: G[500] } }, "Your teleconsult is scheduled for ", /* @__PURE__ */ React.createElement("strong", { style: { color: G[900] } }, tcSlot), " with your care coordinator."), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: G[400], marginTop: 8 } }, "A confirmation has been sent to your email. A join link will appear 15 minutes before your call."), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "Teleconsult Scheduler"), /* @__PURE__ */ React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Book a secure video call with your surgeon or care coordinator"), tcBooked ? /* @__PURE__ */ React.createElement("div", { style: { ...s.card, background: T[50], border: `1px solid ${T[200]}`, textAlign: "center", padding: "40px 28px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 52, height: 52, borderRadius: "50%", background: T[100], border: `2px solid ${T[300]}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" } }, /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 22, color: T[600] })), /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[900], marginBottom: 8 } }, "Appointment confirmed"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: G[500] } }, "Your ", service, " is scheduled for ", /* @__PURE__ */ React.createElement("strong", { style: { color: G[900] } }, tcSlot), "."), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: G[400], marginTop: 8 } }, "A confirmation has been sent to your email. A join link will appear 15 minutes before your call."), /* @__PURE__ */ React.createElement("button", { onClick: () => {
       setTcBooked(false);
       setTcSlot(null);
-    }, style: { ...s.btnGhost, marginTop: 20, fontSize: 12 } }, "Reschedule")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { ...s.card, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Select a date & time"), slots.map(({ day, times }) => /* @__PURE__ */ React.createElement("div", { key: day, style: { marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: G[700], marginBottom: 8 } }, day), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, times.map((t) => /* @__PURE__ */ React.createElement(
+    }, style: { ...s.btnGhost, marginTop: 20, fontSize: 12 } }, "Reschedule")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { ...s.card, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 10 } }, "Appointment type"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 } }, (isNewUser ? ["Initial Consultation"] : ["Pre-op Review", "Post-op Follow-up", "General Question"]).map((t2) => /* @__PURE__ */ React.createElement("button", { key: t2, onClick: () => setService(t2), style: { flex: 1, minWidth: 120, padding: "10px 14px", borderRadius: 8, border: `1.5px solid ${service === t2 ? T[500] : G[100]}`, background: service === t2 ? T[50] : "#fff", color: service === t2 ? T[700] : G[600], fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: sans } }, t2))), /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Select a date & time"), slots.map(({ day, times }) => /* @__PURE__ */ React.createElement("div", { key: day, style: { marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: G[700], marginBottom: 8 } }, day), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, times.map((t) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: t,
@@ -757,7 +785,7 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         style: { padding: "8px 18px", borderRadius: 7, border: `1.5px solid ${tcSlot === `${day} \xB7 ${t}` ? T[500] : G[200]}`, background: tcSlot === `${day} \xB7 ${t}` ? T[50] : "#fff", color: tcSlot === `${day} \xB7 ${t}` ? T[700] : G[700], fontSize: 13, cursor: "pointer", fontFamily: sans, fontWeight: tcSlot === `${day} \xB7 ${t}` ? 500 : 400 }
       },
       t
-    )))))), /* @__PURE__ */ React.createElement("div", { style: { ...s.card, marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 10 } }, "Appointment type"), ["7-day post-op follow-up", "General question / concern", "Wound care review", "Medication review"].map((type) => /* @__PURE__ */ React.createElement("label", { key: type, style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${G[100]}`, cursor: "pointer", fontSize: 13, color: G[700] } }, /* @__PURE__ */ React.createElement("input", { type: "radio", name: "tctype", style: { accentColor: T[500] } }), " ", type))), /* @__PURE__ */ React.createElement(
+    )))))), /* @__PURE__ */ React.createElement(
       "button",
       {
         onClick: () => {
@@ -795,7 +823,7 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const NewUserOverview = () => /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { background: T[950], borderRadius: 16, padding: "36px 36px 32px", marginBottom: 24, position: "relative", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: "-30%", right: "-8%", width: "340px", height: "340px", borderRadius: "50%", background: "radial-gradient(circle,rgba(26,158,149,.18) 0%,transparent 65%)", pointerEvents: "none" } }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", zIndex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(77,208,200,.12)", border: "1px solid rgba(77,208,200,.2)", borderRadius: 20, padding: "5px 14px", marginBottom: 20 } }, /* @__PURE__ */ React.createElement(Icon, { name: "leaf", size: 13, color: T[300] }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T[300] } }, "Application received")), /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: serif, fontSize: 32, fontWeight: 600, color: "#fff", marginBottom: 10, lineHeight: 1.2 } }, "Welcome, ", firstName || ((user == null ? void 0 : user.email) || "").split("@")[0], ".", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("span", { style: { color: T[300], fontStyle: "italic", fontWeight: 400 } }, "Your journey starts here.")), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: "rgba(255,255,255,.5)", fontWeight: 300, maxWidth: 480, lineHeight: 1.8 } }, "We've received your application. A coordinator will be in touch within 24 hours to guide your next steps."))), /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "What happens next"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 } }, NEXT_STEPS.map((step, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { ...s.card, display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 40, height: 40, borderRadius: 10, background: T[50], border: `1px solid ${T[100]}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 } }, /* @__PURE__ */ React.createElement(Icon, { name: step.icon, size: 18, color: T[600] })), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: T[500], background: T[50], border: `1px solid ${T[100]}`, borderRadius: 10, padding: "2px 8px" } }, "Step ", i + 1)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 500, color: G[900], marginBottom: 4 } }, step.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: G[500], lineHeight: 1.6 } }, step.body), step.action && /* @__PURE__ */ React.createElement("button", { onClick: step.onClick, style: { ...s.btnPrimary, marginTop: 12, padding: "8px 18px", fontSize: 12 } }, step.action)), /* @__PURE__ */ React.createElement("div", { style: { width: 20, height: 20, borderRadius: "50%", background: i === 0 ? T[500] : G[200], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 } }, i === 0 && /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 10, color: "#fff" }))))));
   const Overview = () => isNewUser ? /* @__PURE__ */ React.createElement(NewUserOverview, null) : /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: serif, fontSize: 28, color: T[950] } }, "Good morning, ", firstName), /* @__PURE__ */ React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: T[50], border: `1px solid ${T[100]}`, display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Icon, { name: "leaf", size: 14, color: T[600] }))), /* @__PURE__ */ React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Day 8 of recovery \xB7 Everything looks on track"), /* @__PURE__ */ React.createElement("div", { style: { ...s.card, background: T[950], border: "none", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, color: "rgba(255,255,255,.3)", marginBottom: 6 } }, "Recovery progress"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: serif, fontSize: 22, color: "#fff" } }, "Rhinoplasty \xB7 Dr. [Surgeon]")), /* @__PURE__ */ React.createElement(SPill, { status: "Recovery" })), /* @__PURE__ */ React.createElement("div", { style: { height: 6, background: "rgba(255,255,255,.1)", borderRadius: 3, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: "57%", background: T[400], borderRadius: 3 } })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,.3)", marginTop: 6 } }, /* @__PURE__ */ React.createElement("span", null, "Day 8"), /* @__PURE__ */ React.createElement("span", null, "Day 14"))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { style: s.card }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 10 } }, "Next step"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 500, color: G[900], marginBottom: 4 } }, "7-day follow-up"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: G[400] } }, "March 27 \xB7 Telemedicine"), /* @__PURE__ */ React.createElement("button", { onClick: () => showToast("Booking telemedicine..."), style: { ...s.btnPrimary, marginTop: 14, padding: "9px 20px", fontSize: 12 } }, "Book now")), /* @__PURE__ */ React.createElement("div", { style: s.card }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 10 } }, "Your coordinator"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 38, height: 38, borderRadius: "50%", background: T[100], display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Icon, { name: "person", size: 18, color: T[600] })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 500, color: G[900] } }, "Coordinator A"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: G[400] } }, "Usually replies in <2h"))), /* @__PURE__ */ React.createElement("button", { onClick: () => navTo("Messages", "case", "messages"), style: { ...s.btnGhost, fontSize: 12, padding: "8px 16px" } }, "Message"))), /* @__PURE__ */ React.createElement("div", { style: s.card }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Journey timeline"), JOURNEY_STEPS.slice(0, 5).map((step, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 14, padding: "8px 0", borderBottom: i < 4 ? `1px solid ${G[100]}` : "none" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 20, height: 20, borderRadius: "50%", background: step.done ? T[500] : G[200], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, step.done && /* @__PURE__ */ React.createElement(Icon, { name: "check", size: 10, color: "#fff" })), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, fontSize: 13, color: step.done ? G[900] : G[400] } }, step.label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: G[400] } }, step.date))), /* @__PURE__ */ React.createElement("button", { onClick: () => navTo("My Case", "case", "journey"), style: { ...s.btnGhost, marginTop: 14, fontSize: 12, padding: "8px 16px" } }, "View full timeline")));
   const EmptyState = ({ icon, title, body, action, onClick }) => /* @__PURE__ */ React.createElement("div", { style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 48 } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", maxWidth: 360 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 64, height: 64, borderRadius: "50%", background: T[50], border: `2px solid ${T[100]}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" } }, /* @__PURE__ */ React.createElement(Icon, { name: icon, size: 26, color: T[500] })), /* @__PURE__ */ React.createElement("h3", { style: { fontFamily: serif, fontSize: 22, color: T[950], marginBottom: 10 } }, title), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13.5, color: G[500], lineHeight: 1.8, marginBottom: action ? 24 : 0 } }, body), action && /* @__PURE__ */ React.createElement("button", { onClick, style: s.btnPrimary }, action)));
-  const CaseDetail = () => /* @__PURE__ */ React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: `1px solid ${G[200]}`, padding: "0 28px", display: "flex", gap: 0, background: "#fff", flexShrink: 0 } }, [["journey", "Journey"], ["documents", "Documents"], ["recovery", "Checklist"], ["messages", "Messages"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => setCaseTab(k), style: { padding: "16px 20px", fontSize: 13, border: "none", background: "none", cursor: "pointer", color: caseTab === k ? T[600] : G[500], fontFamily: sans, fontWeight: caseTab === k ? 500 : 400, borderBottom: `2px solid ${caseTab === k ? T[500] : "transparent"}`, marginBottom: -1 } }, l))), /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 28, overflowY: "auto" } }, caseTab === "journey" && (isNewUser ? /* @__PURE__ */ React.createElement(
+  const CaseDetail = () => /* @__PURE__ */ React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 28, overflowY: "auto" } }, caseTab === "journey" && (isNewUser ? /* @__PURE__ */ React.createElement(
     EmptyState,
     {
       icon: "clipboard",
@@ -923,6 +951,57 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     );
   };
 
+  const ClinicsScreen = () => {
+    return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
+      React.createElement(PanelHeader, { title: "Clinics", subtitle: "Accredited clinics and hospitals in the network",
+        actions: [React.createElement("button", { key: "add", onClick: () => navTo("+ New Clinic", "form-clinic"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 20px" } }, "+ Add clinic")]
+      }),
+      React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
+      React.createElement(Stat, { label: "Total clinics", value: clinicsList.length, color: T[700], icon: "hospital" }),
+        React.createElement(Stat, { label: "Avg. rating", value: "4.9", color: T[500], icon: "activity" }),
+        React.createElement(Stat, { label: "Active procedures", value: "124", color: G[500], icon: "check" })
+      ),
+    clinicsList.map((c, i) => React.createElement("div", { key: i, style: { ...s.card, display: "flex", alignItems: "center", gap: 16, marginBottom: 12 } },
+        React.createElement("div", { style: { width: 44, height: 44, borderRadius: 12, background: T[100], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 18, fontWeight: 600, color: T[700], flexShrink: 0 } }, c.name.split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("")),
+        React.createElement("div", { style: { flex: 1 } },
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: G[900] } }, c.name),
+          React.createElement("div", { style: { fontSize: 12, color: G[500], marginTop: 2 } }, c.sector, ", ", c.city),
+          React.createElement("div", { style: { fontSize: 11, color: G[400], marginTop: 2 } }, c.specialties)
+        ),
+        React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } },
+          React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: T[600] } }, c.rating, " \u2605")
+        )
+      ))
+    );
+  };
+
+  const DoctorsScreen = () => {
+    if (selectedProvider) return React.createElement(ProviderDetailScreen, null);
+    return React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto" } },
+      React.createElement(PanelHeader, { title: "Doctors", subtitle: "Board-certified surgeons in the Praesenti network",
+        actions: [React.createElement("button", { key: "d", onClick: () => navTo("+ New Doctor", "form-doctor"), style: { ...s.btnPrimary, fontSize: 13, padding: "9px 18px" } }, "+ Add doctor")]
+      }),
+      React.createElement("div", { className: "grid-3", style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } },
+        React.createElement(Stat, { label: "Active doctors", value: providersList.length, color: T[700], icon: "userMd" }),
+        React.createElement(Stat, { label: "Avg. rating", value: "4.86", color: T[500], icon: "activity" }),
+        React.createElement(Stat, { label: "Cases this month", value: "12", color: G[500], icon: "users" })
+      ),
+      PROVIDERS.map((p, i) => React.createElement("div", { key: i, style: { ...s.card, display: "flex", alignItems: "center", gap: 18, marginBottom: 12, cursor: "pointer" }, onClick: () => setSelectedProvider(p), onMouseEnter: e => e.currentTarget.style.borderColor = T[300], onMouseLeave: e => e.currentTarget.style.borderColor = G[200] },
+        React.createElement("div", { style: { width: 44, height: 44, borderRadius: "50%", background: T[800], display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 18, fontWeight: 600, color: T[200], flexShrink: 0 } }, p.name.split(" ")[1][0]),
+        React.createElement("div", { style: { flex: 1 } },
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: G[900] } }, p.name),
+          React.createElement("div", { style: { fontSize: 12, color: G[500], marginTop: 2 } }, p.spec, " \u00b7 ", p.hosp),
+          React.createElement("div", { style: { fontSize: 11, color: G[400], marginTop: 3 } }, p.cert)
+        ),
+        React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } },
+          React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: T[600] } }, p.rating, " \u2605"),
+          React.createElement("div", { style: { fontSize: 11, color: G[400] } }, p.cases, " cases")
+        ),
+        React.createElement(Icon, { name: "arrowLeft", size: 14, color: G[300], style: { transform: "rotate(180deg)" } })
+      ))
+    );
+  };
+
   const App = () => {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState("landing");
@@ -952,4 +1031,4 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(/* @__PURE__ */ React.createElement(App, null));
   };
-  startApp();
+  startApp();}

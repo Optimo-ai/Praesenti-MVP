@@ -25,6 +25,25 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
   const [saving, setSaving]           = useState(false);
   const [selectedTeamMember, setSelectedTeamMember] = useState(null);
 
+  const [coordAssign, setCoordAssign] = useState({ status:"", surgeon:"", clinic:"", home:"", surgery_date:"", discharge_date:"", home_checkin:"", notes:"" });
+  const [coordAssignSaved, setCoordAssignSaved] = useState(false);
+
+  useEffect(() => {
+    if (selectedCase) {
+      setCoordAssign({
+        status: selectedCase.status || "", 
+        surgeon: selectedCase.surgeon && selectedCase.surgeon !== "—" ? selectedCase.surgeon : "— Unassigned —", 
+        clinic: selectedCase.clinic || "— Unassigned —",
+        home: selectedCase.home || "— Unassigned —", 
+        surgery_date: selectedCase.date || "", 
+        discharge_date: "", 
+        home_checkin: "", 
+        notes: "" 
+      });
+      setCoordAssignSaved(false);
+    }
+  }, [selectedCase]);
+
   const COORD_DEMO_DOCS = {
     "C-001": [
       { id:"d1", name:"Passport_EmilyThornton.pdf",   size:"1.2 MB", req_type:"Passport / ID",     url:"#", created_at:"2026-03-01T10:00:00Z" },
@@ -292,7 +311,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
         React.createElement("input", { value:tableSearch, onChange:e=>setTableSearch(e.target.value), placeholder:"Search...", style:{ height:34, border:"1px solid "+G[200], borderRadius:7, padding:"0 12px", fontSize:12.5, fontFamily:sans, outline:"none", color:G[900], width:200 } })
       ),
       React.createElement("div", { className:"table-scroll" },
-        React.createElement("table", { style:{ width:"100%", borderCollapse:"collapse", fontSize:13 } },
+      React.createElement("table", { style:{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:700 } },
           React.createElement("thead", null, React.createElement("tr", { style:{ textAlign:"left" } },
             ["ID","Patient","Procedure","Status","Surgery","Surgeon","Budget","Country"].map(h =>
               React.createElement("th", { key:h, className:["ID","Surgeon","Country"].includes(h)?"col-hide-xs":"", style:{ ...s.label, paddingBottom:10, borderBottom:"1px solid "+G[200], fontWeight:600 } }, h)
@@ -321,9 +340,6 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
       React.createElement("div", null,
         React.createElement("h1", { style:{ fontFamily:serif, fontSize:28, color:T[950], marginBottom:4 } }, "Good morning, "+firstName),
         React.createElement("p", { style:{ color:G[400], fontSize:13 } }, dateStr)
-      ),
-      React.createElement("button", { onClick:()=>navTo("All Cases","cases"), style:{ ...s.btnPrimary, display:"flex", alignItems:"center", gap:8 } },
-        React.createElement(Icon, { name:"users", size:15, color:"#fff" }), "All Cases"
       )
     ),
     React.createElement("div", { className:"grid-4", style:{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:24 } },
@@ -375,7 +391,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
         React.createElement("input", { value:tableSearch, onChange:e=>setTableSearch(e.target.value), placeholder:"Search...", style:{ height:34, border:"1px solid "+G[200], borderRadius:7, padding:"0 12px", fontSize:12.5, fontFamily:sans, outline:"none", color:G[900], width:180 } })
       ),
       React.createElement("div", { className:"table-scroll" },
-        React.createElement("table", { style:{ width:"100%", borderCollapse:"collapse", fontSize:13 } },
+      React.createElement("table", { style:{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:700 } },
           React.createElement("thead", null, React.createElement("tr", { style:{ textAlign:"left" } },
             ["Patient","Procedure","Status","Surgery","Budget"].map(h =>
               React.createElement("th", { key:h, style:{ ...s.label, paddingBottom:10, borderBottom:"1px solid "+G[200], fontWeight:600 } }, h)
@@ -420,7 +436,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
         React.createElement("button", { onClick:()=>navTo("All Cases","cases"), style:{ ...s.btnGhost, fontSize:12, padding:"7px 14px", display:"flex", alignItems:"center", gap:6 } }, React.createElement(Icon,{name:"arrowLeft",size:13,color:G[600]}), "Cases"),
         React.createElement("div", null, React.createElement("h1",{style:{fontFamily:serif,fontSize:24,color:T[950],marginBottom:2}},"Initial Intake"), React.createElement("div",{style:{fontSize:13,color:G[500]}},c.name+" \u00b7 "+c.proc))
       ),
-      React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 } },
+      React.createElement("div", { className:"grid-2", style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 } },
         React.createElement("div", { style:s.card },
           React.createElement(FSec,{t:"Procedure & Budget"}),
           React.createElement("div",{style:{marginBottom:14}},React.createElement(FLb,{t:"Confirmed procedure"}),React.createElement(FSel,{val:form.proc_confirmed,onChange:set("proc_confirmed"),options:["-- Select --",...PROCS]})),
@@ -461,17 +477,62 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
   // ── AssignmentScreen ───────────────────────────────────────────────────
   const AssignmentScreen = () => {
     const c = selectedCase;
-    const [assign, setAssign] = React.useState({ status:c.status, surgeon:c.surgeon||"\u2014 Unassigned \u2014", home:"Villa Serena", surgery_date:c.date||"", discharge_date:"", home_checkin:"", notes:"" });
-    const [saved, setSaved] = React.useState(false);
+    const assign = coordAssign;
+    const setAssign = setCoordAssign;
+    const saved = coordAssignSaved;
+    const setSaved = setCoordAssignSaved;
     const set = k => e => setAssign(a=>({...a,[k]:e.target.value}));
     const STATUS_OPTS  = ["Lead","Qualified","Matched","Pre-op","Recovery","Completed"];
-    const SURGEON_OPTS = ["\u2014 Unassigned \u2014","Dr. Vargas","Dr. Romero","Dr. Medina","Dr. Castillo","Dr. Herrera"];
-    const HOME_OPTS    = ["\u2014 Unassigned \u2014","Villa Serena","Casa Brisa","Punta Suites","Residencial Sol"];
+    const SURGEON_OPTS = ["\u2014 Unassigned \u2014", "Dr. Marcus Varela", "Dr. Carlos Romero", "Dr. Ivan Castillo", "Dr. Ramon Herrera", "Dr. A. Vargas", "Dr. C. Romero", "Dr. M. Medina"];
+    const CLINIC_OPTS  = ["\u2014 Unassigned \u2014", "Bella Forma Clinic", "Centro Medico", "Clinica del Sol", "DentalPro", "Cl\u00ednica Vida", "Hospital del Este"];
+    const HOME_OPTS    = ["\u2014 Unassigned \u2014", "Villa Serena", "Casa Brisa", "Punta Suites", "Residencial Sol"];
+
+    const handleRecommend = (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      const budgetNum = parseInt(String(c.budget || "").replace(/[^0-9]/g, "")) || 5000;
+      const proc = String(c.proc || "").toLowerCase();
+      let bestSurgeon = "\u2014 Unassigned \u2014";
+      let bestClinic = "\u2014 Unassigned \u2014";
+      let bestHome = "\u2014 Unassigned \u2014";
+      if (proc.includes("hair")) { bestSurgeon = "Dr. Ivan Castillo"; bestClinic = "Clinica del Sol"; }
+      else if (proc.includes("bariatric") || proc.includes("weight")) { bestSurgeon = "Dr. Carlos Romero"; bestClinic = "Centro Medico"; }
+      else if (proc.includes("dental") || proc.includes("veneer")) { bestSurgeon = "Dr. Ramon Herrera"; bestClinic = "DentalPro"; }
+      else { bestSurgeon = "Dr. Marcus Varela"; bestClinic = "Bella Forma Clinic"; }
+      if (budgetNum > 6000) bestHome = "Punta Suites";
+      else if (budgetNum > 4000) bestHome = "Villa Serena";
+      else bestHome = "Residencial Sol";
+      setAssign(a => ({ ...a, surgeon: bestSurgeon, clinic: bestClinic, home: bestHome }));
+      showToast("AI match applied based on budget & procedure");
+    };
+
     const handleSave = async () => {
       setSaving(true);
-      await new Promise(r=>setTimeout(r,600));
-      addNotif({ type:"case", title:"Case updated", body:`${c.name} moved to "${assign.status}".`, caseId:c.id });
-      setSaving(false); setSaved(true);
+      try {
+        if (c.caso_id_uuid) {
+          const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+          const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
+          if (SUPA_URL && SUPA_KEY) {
+            await fetch(`${SUPA_URL}/rest/v1/caso?caso_id=eq.${c.caso_id_uuid}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, Prefer: "return=minimal" },
+              body: JSON.stringify({
+                cirujano_id: assign.surgeon !== "\u2014 Unassigned \u2014" ? assign.surgeon : null,
+                clinica_id: assign.clinic !== "\u2014 Unassigned \u2014" ? assign.clinic : null,
+                recovery_home_id: assign.home !== "\u2014 Unassigned \u2014" ? assign.home : null,
+                estado: assign.status.toLowerCase()
+              })
+            });
+          }
+        }
+        
+        c.surgeon = assign.surgeon !== "\u2014 Unassigned \u2014" ? assign.surgeon : null;
+        c.clinic = assign.clinic !== "\u2014 Unassigned \u2014" ? assign.clinic : null;
+        c.home = assign.home !== "\u2014 Unassigned \u2014" ? assign.home : null;
+        c.status = assign.status;
+
+        addNotif({ type:"case", title:"Case updated", body:`${c.name} assigned to ${assign.surgeon}.`, caseId:c.id });
+        setSaving(false); setSaved(true);
+      } catch(e) { console.error(e); showToast("Error updating assignment"); setSaving(false); }
     };
     if (saved) return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, display:"flex", alignItems:"center", justifyContent:"center" } },
       React.createElement("div", { style:{ textAlign:"center", maxWidth:380 } },
@@ -490,7 +551,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
         React.createElement("div",null,React.createElement("h1",{style:{fontFamily:serif,fontSize:24,color:T[950],marginBottom:2}},"Assignment Panel"),React.createElement("div",{style:{fontSize:13,color:G[500]}},c.name+" \u00b7 "+c.proc)),
         React.createElement(SPill,{status:c.status})
       ),
-      React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 } },
+      React.createElement("div", { className:"grid-2", style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 } },
         React.createElement("div", { style:{ display:"flex", flexDirection:"column", gap:14 } },
           React.createElement("div", { style:s.card },
             React.createElement("div",{style:{...s.label,marginBottom:16}},"Case status"),
@@ -501,8 +562,12 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
             )
           ),
           React.createElement("div", { style:s.card },
-            React.createElement("div",{style:{...s.label,marginBottom:16}},"Medical team"),
+            React.createElement("div",{style:{...s.label,marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}},
+              "Medical team",
+              React.createElement("button", { onClick: handleRecommend, style: { ...s.btnGhost, padding: "4px 10px", fontSize: 11, color: T[600], borderColor: T[200], background: T[50], display: "flex", alignItems: "center", gap: 4 } }, "Recommend")
+            ),
             React.createElement(DRow,{l:"Assigned surgeon"},React.createElement(FSel,{val:assign.surgeon,onChange:set("surgeon"),options:SURGEON_OPTS})),
+            React.createElement(DRow,{l:"Assigned clinic"},React.createElement(FSel,{val:assign.clinic,onChange:set("clinic"),options:CLINIC_OPTS})),
             assign.surgeon && assign.surgeon!=="\u2014 Unassigned \u2014" && React.createElement("div",{style:{padding:"10px 14px",background:T[50],border:`1px solid ${T[100]}`,borderRadius:8,marginTop:-4,fontSize:12.5,color:T[700]}},assign.surgeon+" will be notified of this case.")
           ),
           React.createElement("div", { style:s.card },
@@ -555,7 +620,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
           React.createElement("button",{onClick:()=>navTo("Assignment","assign"),style:{...s.btnPrimary,fontSize:12,padding:"7px 14px",flex:1}},"Assignment")
         )
       ),
-      React.createElement("div", { style:{ display:"flex", gap:20, borderBottom:"1px solid "+G[200], marginBottom:20 } },
+    React.createElement("div", { className:"case-tabs", style:{ display:"flex", gap:20, borderBottom:"1px solid "+G[200], marginBottom:20 } },
         [["journey","Journey"],["checklist","Checklist"],["documents","Documents ("+coordDocs.length+")"],["messages","Messages"]].map(([k,lbl])=>
           React.createElement("button",{key:k,onClick:()=>setCoordCaseTab(k),style:{padding:"0 4px 12px",fontSize:13.5,fontWeight:500,color:coordCaseTab===k?T[700]:G[500],borderBottom:"2.5px solid "+(coordCaseTab===k?T[500]:"transparent"),background:"none",border:"none",cursor:"pointer"}},lbl)
         )
@@ -621,18 +686,24 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
   const PipelineScreen = () => React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } },
     React.createElement("h1",{style:{fontFamily:serif,fontSize:26,color:T[950],marginBottom:4}},"Pipeline"),
     React.createElement("p",{style:{color:G[400],fontSize:13,marginBottom:28}},"Patient journey status across all active cases"),
-    React.createElement("div",{className:"grid-6",style:{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:12,alignItems:"start"}},
+    React.createElement("div", { className: "pipeline-scroll", style: { overflowX: "auto", paddingBottom: 16 } },
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(6,260px)",gap:16,alignItems:"start",minWidth:"max-content"}},
       COORD_PIPELINE_COLS.map(({label,color,items})=>React.createElement("div",{key:label},
         React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}},
           React.createElement("span",{style:{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color}},label),
           React.createElement("span",{style:{fontSize:11,background:G[100],color:G[500],borderRadius:10,padding:"1px 7px"}},items.length)
         ),
-        items.map((it,i)=>React.createElement("div",{key:i,style:{...s.card,marginBottom:8,padding:"12px 14px",cursor:"pointer",borderLeft:"3px solid "+color},onMouseEnter:e=>e.currentTarget.style.borderColor=color,onMouseLeave:e=>e.currentTarget.style.borderColor=color},
+        items.map((it,i)=>React.createElement("div",{key:i,style:{...s.card,marginBottom:8,padding:"12px 14px",cursor:"pointer",borderLeft:"3px solid "+color},onMouseEnter:e=>e.currentTarget.style.borderColor=color,onMouseLeave:e=>e.currentTarget.style.borderColor=color,onClick:()=>{
+          const fullCase = CASES.find(c => c.name === it.name) || { ...it, id: "C-C" + i, status: label, date: "TBD", surgeon: "\u2014 Unassigned \u2014" };
+          setSelectedCase(fullCase);
+          navTo("All Cases", "caseDetail");
+        }},
           React.createElement("div",{style:{fontSize:13,fontWeight:600,color:G[900],marginBottom:3}},it.name),
           React.createElement("div",{style:{fontSize:11,color:G[500]}},it.proc),
           React.createElement("div",{style:{fontSize:11,color:T[600],fontWeight:500,marginTop:4}},it.budget+" \u00b7 "+it.country)
         ))
       ))
+    )
     )
   );
 
@@ -775,7 +846,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
     if (screen === "cases")      return CasesTable({ title:"All Cases", onRowClick:c=>{ setSelectedCase(c); navTo("All Cases","caseDetail"); } });
     if (screen === "caseDetail") return CaseDetailScreen();
     if (screen === "intake")     return React.createElement(IntakeScreen, null);
-    if (screen === "assign")     return React.createElement(AssignmentScreen, null);
+    if (screen === "assign")     return AssignmentScreen();
     if (screen === "pipeline")   return PipelineScreen();
     if (screen === "messages")   return MessagesScreen();
     if (screen === "team")       return TeamScreen();
