@@ -4,6 +4,7 @@ import { fetchChecklist, saveChecklist, fetchDocuments, uploadDocument, deleteDo
 import { HamburgerIcon, Icon, SPill, Toast, Modal, IR } from './shared.js';
 import { Wizard } from './Wizard.js';
 import { CheckoutModal } from './CheckoutModal.js';
+import { CountrySelect } from './Wizard.js'; // Import it to reuse it
 
 const { React } = window;
 const { useState, useRef, useEffect } = React;
@@ -34,24 +35,57 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const [uploading, setUploading] = useState(false);
   const [targetReqType, setTargetReqType] = useState(null);
   const fileInputRef = useRef(null);
+  
+  const getAuthHeader = () => {
+    let token = user?.token;
+    if (!token) {
+      try {
+        const localSession = JSON.parse(localStorage.getItem("session_user"));
+        if (localSession && localSession.token) token = localSession.token;
+      } catch(e) {}
+    }
+    return token ? `Bearer ${token}` : `Bearer ${SUPABASE_KEY}`;
+  };
 
   useEffect(() => {
     const fetchPatientCase = async () => {
       if (!user || user.isDemo) return;
-      if (!SUPA_URL) { console.warn("[CASE] No SUPA_URL"); return; }
+      if (!SUPABASE_URL) { console.warn("[CASE] No SUPABASE_URL"); return; }
       console.log("[CASE] Looking for case. user.id:", user.id);
       try {
-        const pacRes = await fetch(`${SUPA_URL}/rest/v1/paciente?auth_user_id=eq.${user.id}&select=paciente_id`, {
-          headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+        const pacRes = await fetch(`${SUPABASE_URL}/rest/v1/paciente?auth_user_id=eq.${user.id}&select=*`, {
+          headers: { apikey: SUPABASE_KEY, "Authorization": getAuthHeader() }
         }).then(r => r.json());
         console.log("[CASE] paciente query result:", pacRes);
         if (!pacRes || pacRes.length === 0) { console.warn("[CASE] No paciente record found"); return; }
         if (pacRes.error) { console.error("[CASE] paciente query error:", pacRes.error); return; }
         
-        const pid = pacRes[0].paciente_id;
+        const pData = pacRes[0];
+        const pid = pData.paciente_id;
+        
+        // Cargar datos del perfil en el formulario
+        let fetchedFn = firstName;
+        let fetchedLn = lastName;
+        if (pData.nombre_completo) {
+          const parts = pData.nombre_completo.trim().split(" ");
+          fetchedFn = parts[0] || firstName;
+          fetchedLn = parts.length > 1 ? parts.slice(1).join(" ") : lastName;
+        }
+        setProfileForm(prev => ({
+          ...prev,
+          fn: fetchedFn,
+          ln: fetchedLn,
+          phone: pData.telefono || prev.phone,
+          country: pData.pais_residencia || prev.country
+        }));
+        
+        // Mark onboarding as done automatically since they exist in DB
+        localStorage.setItem("onboarding_done_" + user.id, "true");
+        setScreen(s => s === "onboarding" ? "overview" : s);
+
         console.log("[CASE] found paciente_id:", pid);
-        const casoRes = await fetch(`${SUPA_URL}/rest/v1/caso?paciente_id=eq.${pid}&select=caso_id`, {
-          headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+        const casoRes = await fetch(`${SUPABASE_URL}/rest/v1/caso?paciente_id=eq.${pid}&select=caso_id`, {
+          headers: { apikey: SUPABASE_KEY, "Authorization": getAuthHeader() }
         }).then(r => r.json());
         console.log("[CASE] caso query result:", casoRes);
         if (!casoRes || casoRes.length === 0) { console.warn("[CASE] No caso record found for paciente_id:", pid); return; }
@@ -97,6 +131,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     if (savedDoc) {
       setDocsList(prev => [savedDoc, ...prev]);
       showToast("Document saved successfully");
+      setNotifications(ns => [{ id: Date.now(), type: "document", title: "Document uploaded", body: `${file.name} was uploaded successfully.`, time: "Just now", read: false }, ...ns]);
     } else {
       showToast("Error uploading document");
     }
@@ -136,13 +171,13 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   const fetchPayments = async () => {
     if (!user || !user.id || isDemo) return;
     try {
-      const pacRes = await fetch(SUPA_URL + '/rest/v1/paciente?auth_user_id=eq.' + user.id + '&select=paciente_id', {
-        headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+      const pacRes = await fetch(SUPABASE_URL + '/rest/v1/paciente?auth_user_id=eq.' + user.id + '&select=paciente_id', {
+        headers: { apikey: SUPABASE_KEY, "Authorization": getAuthHeader() }
       }).then(r => r.json());
       if (pacRes && pacRes[0]) {
         const pid = pacRes[0].paciente_id;
-        const res = await fetch(SUPA_URL + '/rest/v1/pago?caso(paciente_id)=eq.' + pid + '&select=*,caso(*)', {
-          headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+        const res = await fetch(SUPABASE_URL + '/rest/v1/pago?caso(paciente_id)=eq.' + pid + '&select=*,caso(*)', {
+          headers: { apikey: SUPABASE_KEY, "Authorization": getAuthHeader() }
         }).then(r => r.json());
         if (res && !res.error) {
           const mapped = res.map(p => ({
@@ -301,7 +336,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       )),
       React.createElement("div", { style: { marginBottom: 14 } },
         React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 6 } }, "Country"),
-        React.createElement("select", { value: profileForm.country, onChange: (e) => setProfileForm(f => ({ ...f, country: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 8, padding: "0 14px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, ["", "United States", "Canada", "United Kingdom", "Australia", "Dominican Republic", "Argentina", "Austria", "Bahamas", "Belgium", "Bolivia", "Brazil", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Czech Republic", "Denmark", "Ecuador", "Egypt", "El Salvador", "Finland", "France", "Germany", "Greece", "Guatemala", "Honduras", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nicaragua", "Norway", "Panama", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "United Arab Emirates", "Uruguay", "Venezuela", "Vietnam", "Other"].map(c => React.createElement("option", { key: c, value: c }, c || "Select a country")))
+        React.createElement(CountrySelect, { value: profileForm.country, onChange: (val) => setProfileForm(f => ({ ...f, country: val })) })
       ),
       React.createElement("div", { style: { marginBottom: 14 } },
         React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 6 } }, "Preferred language"),
@@ -314,21 +349,54 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       React.createElement("div", { style: { borderTop: `1px solid ${G[100]}`, paddingTop: 20, marginTop: 6 } },
         React.createElement("div", { style: { ...s.label, marginBottom: 16, marginTop: 20 } }, "Security"),
         React.createElement("button", { onClick: () => {
-          if (!SUPA_URL || !SUPABASE_URL) {
+          if (!SUPABASE_URL) {
             showToast("Password reset email sent (demo mode)");
             return;
           }
           const email = profileForm.email || (user && user.email);
           if (!email) { showToast("No email on file"); return; }
-          fetch(SUPA_URL + "/auth/v1/recover", {
+          fetch(SUPABASE_URL + "/auth/v1/recover", {
             method: "POST",
-            headers: { "Content-Type": "application/json", apikey: SUPA_KEY },
+            headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
             body: JSON.stringify({ email })
           }).then(() => showToast("Password reset email sent to " + email))
             .catch(() => showToast("Error sending reset email"));
         }, style: s.btnGhost }, "Update password")
       ),
-      React.createElement("button", { onClick: () => { setProfileSaved(true); showToast("Profile updated successfully"); setTimeout(() => setProfileSaved(false), 3000); }, style: { ...s.btnPrimary, marginTop: 24, width: "100%" } }, "Save changes")
+      React.createElement("button", { onClick: async () => {
+        if (!user || user.isDemo) {
+          setProfileSaved(true); showToast("Profile updated successfully"); setTimeout(() => setProfileSaved(false), 3000);
+          return;
+        }
+        try {
+          if (!user?.id) throw new Error("ID de usuario no disponible para actualizar");
+          showToast("Saving...");
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/paciente?auth_user_id=eq.${user.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, "Authorization": getAuthHeader(), "Prefer": "return=minimal" },
+            body: JSON.stringify({
+              nombre_completo: `${profileForm.fn} ${profileForm.ln}`.trim(),
+              telefono: profileForm.phone,
+              pais_residencia: profileForm.country
+            })
+          });
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(errText);
+          }
+          setProfileSaved(true); showToast("Profile updated successfully"); setTimeout(() => setProfileSaved(false), 3000);
+        } catch(e) {
+          console.error("Profile update error:", e);
+          let msg = "Error updating profile";
+          try {
+            const parsed = JSON.parse(e.message);
+            if (parsed.message) msg = parsed.message;
+          } catch(err) {
+            if (e.message && e.message.length < 100) msg = e.message;
+          }
+          showToast("Fallo: " + msg);
+        }
+      }, style: { ...s.btnPrimary, marginTop: 24, width: "100%" } }, "Save changes")
     )
   );
 
@@ -505,24 +573,29 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         ))
       )
     ),
-    caseTab === "documents" && React.createElement(React.Fragment, null,
-      React.createElement("input", { type: "file", ref: fileInputRef, onChange: handleFileChange, style: { display: "none" } }),
-      React.createElement("div", { style: { ...s.card, padding: "24px" } },
-        React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Required documents"),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
-          (isDemo ? DOCS : [
+    caseTab === "documents" && (() => {
+      const reqList = (isDemo ? DOCS : [
             { name: "Passport / Government ID",    size: "", date: "" },
             { name: "Medical clearance letter",    size: "", date: "" },
             { name: "Blood work results",          size: "", date: "" },
             { name: "Consent form",                size: "", date: "" },
             { name: "Insurance or payment proof",  size: "", date: "" }
-          ]).map((doc, i) => {
+      ]);
+      const requiredNames = reqList.map(d => d.name);
+      const extraDocs = docsList.filter(d => !requiredNames.includes(d.req_type));
+      
+      return React.createElement(React.Fragment, null,
+        React.createElement("input", { type: "file", ref: fileInputRef, onChange: handleFileChange, style: { display: "none" } }),
+        React.createElement("div", { style: { ...s.card, padding: "24px" } },
+          React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Required documents"),
+          React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
+            reqList.map((doc, i) => {
             const uploadedDoc = docsList.find(d => d.req_type === doc.name);
             const hasUpload = !!uploadedDoc;
             return React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 14, padding: "14px", border: `1px solid ${hasUpload ? T[100] : G[200]}`, borderRadius: 8, background: hasUpload ? T[50] : "#fff" } },
               React.createElement("div", { style: { width: 38, height: 38, borderRadius: 8, background: hasUpload ? T[100] : G[50], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, React.createElement(Icon, { name: hasUpload ? "check" : "document", size: 18, color: hasUpload ? T[600] : G[500] })),
               React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: G[900] } }, hasUpload ? uploadedDoc.name : doc.name),
+                  React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: G[900], whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, hasUpload ? uploadedDoc.name : doc.name),
                 React.createElement("div", { style: { fontSize: 11, color: hasUpload ? T[600] : G[400], marginTop: 2 } }, hasUpload ? (uploadedDoc.size + " \u00b7 " + (uploadedDoc.created_at ? new Date(uploadedDoc.created_at).toLocaleDateString() : "Just now")) : (doc.size ? doc.size + " \u00b7 " + doc.date : "Pending upload"))
               ),
               hasUpload
@@ -530,18 +603,17 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
                     React.createElement("a", { href: uploadedDoc.url, target: "_blank", rel: "noopener noreferrer", style: { ...s.btnGhost, fontSize: 11, padding: "6px 12px", textDecoration: "none" } }, "View"),
                     React.createElement("button", { onClick: () => handleDeleteDoc(uploadedDoc), title: "Delete document", style: { background: "#fff1f1", border: "1px solid #fee2e2", cursor: "pointer", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" } }, React.createElement(Icon, { name: "close", size: 10, color: "#ef4444" }))
                   )
-                : React.createElement("button", { onClick: () => { setTargetReqType(doc.name); if (fileInputRef.current) fileInputRef.current.click(); }, style: { ...s.btnPrimary, fontSize: 11, padding: "6px 12px", background: G[600] } }, "Upload")
+                : React.createElement("button", { onClick: () => { setTargetReqType(doc.name); if (fileInputRef.current) fileInputRef.current.value = ""; if (fileInputRef.current) fileInputRef.current.click(); }, style: { ...s.btnPrimary, fontSize: 11, padding: "6px 12px", background: G[600] } }, "Upload")
             );
           })
         )
       ),
-      // Show extra docs if we have more than needed
-      docsList.length > DOCS.length && React.createElement("div", { style: { ...s.card, marginTop: 16 } },
+      extraDocs.length > 0 && React.createElement("div", { style: { ...s.card, marginTop: 16 } },
         React.createElement("div", { style: { ...s.label, marginBottom: 14 } }, "Additional documents"),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, 
-          docsList.slice(DOCS.length).map((d, i) => React.createElement("div", { key: d.id || i, style: { display: "flex", alignItems: "center", gap: 14, padding: "12px", background: G[50], borderRadius: 8 } },
+          extraDocs.map((d, i) => React.createElement("div", { key: d.id || i, style: { display: "flex", alignItems: "center", gap: 14, padding: "12px", background: G[50], borderRadius: 8 } },
             React.createElement("div", { style: { width: 32, height: 32, borderRadius: 6, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, React.createElement(Icon, { name: "document", size: 16, color: G[500] })),
-            React.createElement("div", { style: { flex: 1, minWidth: 0 } }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, d.name), React.createElement("div", { style: { fontSize: 10, color: G[400], marginTop: 2 } }, d.size + " \u00b7 " + (d.created_at ? new Date(d.created_at).toLocaleDateString() : "Just now"))),
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, d.name), React.createElement("div", { style: { fontSize: 10, color: G[400], marginTop: 2 } }, (d.size || "Unknown size") + " \u00b7 " + (d.req_type ? d.req_type : "Extra Document") + " \u00b7 " + (d.created_at ? new Date(d.created_at).toLocaleDateString() : "Just now"))),
             React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } },
               React.createElement("a", { href: d.url, target: "_blank", rel: "noopener noreferrer", style: { color: T[500], fontSize: 11, fontWeight: 600, textDecoration: "none" } }, "View"),
               React.createElement("button", { onClick: () => handleDeleteDoc(d), title: "Delete document", style: { background: "#fff1f1", border: "1px solid #fee2e2", cursor: "pointer", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" } }, React.createElement(Icon, { name: "close", size: 10, color: "#ef4444" }))
@@ -550,9 +622,10 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         )
       ),
       React.createElement("div", { style: { marginTop: 16 } },
-        React.createElement("button", { onClick: () => { if (fileInputRef.current) fileInputRef.current.click(); }, style: { ...s.btnGhost, width: "100%" } }, uploading ? "Uploading..." : "+ Upload additional document")
+        React.createElement("button", { onClick: () => { setTargetReqType(null); if (fileInputRef.current) fileInputRef.current.value = ""; if (fileInputRef.current) fileInputRef.current.click(); }, style: { ...s.btnGhost, width: "100%" } }, uploading ? "Uploading..." : "+ Upload additional document")
       )
-    ),
+      );
+    })(),
     caseTab === "recovery" && React.createElement(React.Fragment, null,
       React.createElement("div", { style: { ...s.card, padding: "24px" } },
         RECOVERY_CHECKS.map((item, i) => React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i < RECOVERY_CHECKS.length - 1 ? `1px solid ${G[100]}` : "none", cursor: "default" } },
@@ -624,7 +697,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       React.createElement("div", { style:{ marginBottom:32 } },
         React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:8 } },
           React.createElement("span", { style:{ fontSize:12, fontWeight:600, color:T[500], textTransform:"uppercase", letterSpacing:"0.1em" } }, "Step "+step+" of 3"),
-          React.createElement("span", { style:{ fontSize:11, color:G[400] } }, ["","Takes 1 minute","No commitment","Free \u00b7 30 min"][step])
+          React.createElement("span", { style:{ fontSize:11, color:G[400] } }, ["","Takes 1 minute","No commitment","Free · 30 min"][step])
         ),
         React.createElement("div", { style:{ height:4, background:G[100], borderRadius:2, overflow:"hidden" } },
           React.createElement("div", { style:{ height:"100%", width:pct+"%", background:T[500], borderRadius:2, transition:"width .4s" } })
@@ -634,9 +707,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         React.createElement("h2", { style:{ fontFamily:serif, fontSize:26, color:T[950], marginBottom:6 } }, "Welcome, "+firstName+"!"),
         React.createElement("p", { style:{ fontSize:14, color:G[500], marginBottom:28, lineHeight:1.7 } }, "Let us finish setting up your profile so your coordinator has everything they need."),
         React.createElement("div", { style:{ marginBottom:16 } }, React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Country of residence"), 
-          React.createElement("select", { value:form.country, onChange:set("country"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } },
-            ["", "United States", "Canada", "United Kingdom", "Australia", "Dominican Republic", "Argentina", "Austria", "Bahamas", "Belgium", "Bolivia", "Brazil", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Czech Republic", "Denmark", "Ecuador", "Egypt", "El Salvador", "Finland", "France", "Germany", "Greece", "Guatemala", "Honduras", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Nicaragua", "Norway", "Panama", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey", "United Arab Emirates", "Uruguay", "Venezuela", "Vietnam", "Other"].map(c => React.createElement("option", { key:c, value:c }, c || "Select a country"))
-          )
+          React.createElement(CountrySelect, { value: form.country, onChange: (val) => setForm(f => ({ ...f, country: val })) })
         ),
         React.createElement("div", { style:{ marginBottom:16 } }, React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Phone number"), React.createElement("input", { type:"tel", value:form.phone, onChange:set("phone"), placeholder:"+1 555 000 0000", style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900] } })),
         React.createElement("div", { style:{ marginBottom:16 } }, React.createElement("label", { style:{ display:"block", fontSize:12, fontWeight:500, color:G[700], marginBottom:5 } }, "Preferred language"), React.createElement("select", { value:form.lang, onChange:set("lang"), style:{ width:"100%", height:40, border:`1px solid ${G[200]}`, borderRadius:7, padding:"0 12px", fontSize:13.5, fontFamily:sans, outline:"none", color:G[900], background:"#fff" } }, ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Arabic", "Chinese", "Japanese", "Korean", "Russian", "Other"].map(l=>React.createElement("option",{key:l,value:l},l)))),
@@ -663,7 +734,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
           React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", fontSize:11, color:G[400], marginTop:4 } }, React.createElement("span",null,"$1,000"), React.createElement("span",null,"$30,000+"))
         ),
         React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginTop:28 } },
-          React.createElement("button", { onClick:()=>setStep(1), style:{ ...s.btnGhost, padding:"11px 24px", fontSize:13 } }, "\u2190 Back"),
+          React.createElement("button", { onClick:()=>setStep(1), style:{ ...s.btnGhost, padding:"11px 24px", fontSize:13 } }, "← Back"),
           React.createElement("button", { onClick:()=>{
             if(!proc) {
               showToast("Please select a procedure.");
@@ -680,16 +751,76 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
           SLOTS.map(({ day, times }) => React.createElement("div", { key:day, style:{ marginBottom:18 } },
             React.createElement("div", { style:{ fontSize:12, fontWeight:600, color:G[700], marginBottom:8 } }, day),
             React.createElement("div", { style:{ display:"flex", flexWrap:"wrap", gap:8 } },
-              times.map(t=>React.createElement("button", { key:t, onClick:()=>setSlot(day+" \u00b7 "+t), style:{ padding:"8px 18px", borderRadius:7, border:`1.5px solid ${slot===day+" \u00b7 "+t?T[500]:G[200]}`, background:slot===day+" \u00b7 "+t?T[50]:"#fff", color:slot===day+" \u00b7 "+t?T[700]:G[700], fontSize:13, cursor:"pointer", fontFamily:sans } }, t))
+              times.map(t=>React.createElement("button", { key:t, onClick:()=>setSlot(day+" · "+t), style:{ padding:"8px 18px", borderRadius:7, border:`1.5px solid ${slot===day+" · "+t?T[500]:G[200]}`, background:slot===day+" · "+t?T[50]:"#fff", color:slot===day+" · "+t?T[700]:G[700], fontSize:13, cursor:"pointer", fontFamily:sans } }, t))
             )
           ))
         ),
         React.createElement("p", { style:{ fontSize:12, color:G[400], textAlign:"center", marginBottom:20 } }, "Don\u2019t want to book now? You can schedule later from your dashboard."),
         React.createElement("div", { style:{ display:"flex", justifyContent:"space-between" } },
-          React.createElement("button", { onClick:()=>setStep(2), style:{ ...s.btnGhost, padding:"11px 24px", fontSize:13 } }, "\u2190 Back"),
+          React.createElement("button", { onClick:()=>setStep(2), style:{ ...s.btnGhost, padding:"11px 24px", fontSize:13 } }, "← Back"),
           React.createElement("div", { style:{ display:"flex", gap:10 } },
             React.createElement("button", { onClick:()=>setDone(true), style:{ ...s.btnGhost, padding:"11px 20px", fontSize:13 } }, "Skip"),
-            React.createElement("button", { onClick:()=>{ if(slot)setDone(true); else showToast("Please select a time slot"); }, style:{ ...s.btnPrimary, padding:"11px 28px", fontSize:13 } }, "Confirm call")
+            React.createElement("button", { onClick: async ()=>{ 
+              if(!slot) { showToast("Please select a time slot"); return; }
+              
+              if (user && !user.isDemo) {
+                try {
+                  showToast("Guardando tu perfil...");
+                  let pacRes = await fetch(`${SUPABASE_URL}/rest/v1/paciente?auth_user_id=eq.${user.id}`, { headers: { apikey: SUPABASE_KEY, "Authorization": getAuthHeader() } });
+                  let pac = await pacRes.json();
+                  if (pac.error) throw new Error("Error consultando paciente: " + JSON.stringify(pac));
+
+                  let pid;
+                  if (pac && pac.length > 0) { pid = pac[0].paciente_id; } else {
+                    const insRes = await fetch(`${SUPABASE_URL}/rest/v1/paciente`, {
+                      method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, "Authorization": getAuthHeader(), "Prefer": "return=representation" },
+                      body: JSON.stringify({ auth_user_id: user.id, nombre_completo: `${firstName} ${user.ln || ""}`.trim(), email: user.email, telefono: form.phone, pais_residencia: form.country })
+                    });
+                    const ins = await insRes.json();
+                    if (ins.error || !insRes.ok) throw new Error("Error creando paciente: " + JSON.stringify(ins));
+                    
+                    if (ins && ins.length > 0) {
+                      pid = ins[0].paciente_id;
+                    } else {
+                      const pacRetry = await fetch(`${SUPABASE_URL}/rest/v1/paciente?auth_user_id=eq.${user.id}`, { headers: { apikey: SUPABASE_KEY, "Authorization": getAuthHeader() } });
+                      const pac2 = await pacRetry.json();
+                      if (pac2 && pac2.length > 0) pid = pac2[0].paciente_id;
+                    }
+                  }
+
+                  if (!pid) throw new Error("Supabase bloqueó la lectura del paciente. (Verifica que la tabla 'paciente' tenga una política RLS de SELECT para usuarios).");
+
+                  if (pid) {
+                    const casoRes = await fetch(`${SUPABASE_URL}/rest/v1/caso`, {
+                      method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, "Authorization": getAuthHeader(), "Prefer": "return=minimal" },
+                      body: JSON.stringify({ paciente_id: pid, estado: "lead", procedimiento: proc || "TBD" })
+                    });
+                    if (!casoRes.ok) {
+                      const eTxt = await casoRes.text();
+                      throw new Error("Error creando caso: " + eTxt);
+                    }
+
+                    const perfilRes = await fetch(`${SUPABASE_URL}/rest/v1/perfil_medico`, {
+                      method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, "Authorization": getAuthHeader(), "Prefer": "return=minimal" },
+                      body: JSON.stringify({ paciente_id: pid, procedimiento_interes: proc, presupuesto_estimado_usd: budget })
+                    });
+                    if (!perfilRes.ok) {
+                      const eTxt = await perfilRes.text();
+                      throw new Error("Error creando perfil médico: " + eTxt);
+                    }
+                  }
+                  await fetch(`${SUPABASE_URL}/auth/v1/user`, { method: "PUT", headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, "Authorization": getAuthHeader() }, body: JSON.stringify({ data: { onboarding_done: true } }) });
+                  
+                  localStorage.setItem("onboarding_done_" + user.id, "true");
+                  setDone(true);
+                } catch(e) { 
+                  console.error("Error detallado al guardar:", e); 
+                  showToast("Hubo un error al guardar. Revisa la consola.");
+                }
+              } else {
+                setDone(true);
+              }
+            }, style:{ ...s.btnPrimary, padding:"11px 28px", fontSize:13 } }, "Confirm call")
           )
         )
       )
@@ -754,7 +885,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
           React.createElement("div", { style:{ width:40, height:40, borderRadius:"50%", background:st.status==="done"?T[500]:st.status==="current"?T[50]:"#fff", border:`2px solid ${st.status==="done"?T[500]:st.status==="current"?T[400]:G[200]}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:4 } },
             st.status==="done" ? React.createElement(Icon,{name:"check",size:16,color:"#fff"}) : st.status==="current" ? React.createElement(Icon,{name:st.icon,size:16,color:T[600]}) : React.createElement("div",{style:{width:10,height:10,borderRadius:"50%",background:G[300]}})
           ),
-          React.createElement("div", { style:{ flex:1, ...s.card, marginBottom:0, cursor:"pointer", opacity:st.status==="pending"?.65:1 }, onClick:()=>setExpanded(e=>e===i?null:i), onMouseEnter:e=>{ if(st.status!=="pending")e.currentTarget.style.borderColor=T[300]; }, onMouseLeave:e=>e.currentTarget.style.borderColor=G[200] },
+          React.createElement("div", { style:{ flex:1, ...s.card, marginBottom:0, cursor:"pointer", opacity:st.status==="pending" ? 0.65 : 1 }, onClick:()=>setExpanded(e=>e===i?null:i), onMouseEnter:e=>{ if(st.status!=="pending")e.currentTarget.style.borderColor=T[300]; }, onMouseLeave:e=>e.currentTarget.style.borderColor=G[200] },
             React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center" } },
               React.createElement("div", { style:{ display:"flex", alignItems:"center", gap:10 } },
                 React.createElement("div", { style:{ fontSize:14, fontWeight:500, color:G[900] } }, st.label),
@@ -762,7 +893,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
               ),
               React.createElement("div", { style:{ display:"flex", alignItems:"center", gap:12 } },
                 React.createElement("span", { style:{ fontSize:12, color:G[400] } }, st.date),
-                React.createElement("span", { style:{ fontSize:16, color:G[400], display:"inline-block", transition:"transform .2s", transform:expanded===i?"rotate(180deg)":"none" } }, "\u25be")
+                React.createElement("span", { style:{ fontSize:16, color:G[400], display:"inline-block", transition:"transform .2s", transform:expanded===i?"rotate(180deg)":"none" } }, "▾")
               )
             ),
             expanded===i && React.createElement("div", { style:{ marginTop:14, paddingTop:14, borderTop:`1px solid ${G[100]}` } },
@@ -781,7 +912,8 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
     surgeon: { name:"Dr. Marcus Varela", specialty:"Plastic & Reconstructive Surgery", clinic:"Bella Forma Clinic", phone:"+1 809 555 0101", email:"varela@bellaforma.com", license:"MED-2019-04", experience:9, langs:"Spanish, English", bio:"Board-certified plastic surgeon with 9 years of experience in aesthetic procedures. Trained in Miami and Santo Domingo.", rating:"4.9", cases:41 },
     coordinator: { name:"Sofia Reyes", role:"Care Coordinator", phone:"+1 809 555 0202", email:"sofia@praesenti.com", langs:"Spanish, English, French" },
     clinic: { name:"Bella Forma Clinic", address:"Av. Abraham Lincoln 705, Piantini", city:"Santo Domingo", phone:"+1 809 555 0300", email:"info@bellaforma.com", specialties:"Plastic Surgery, Aesthetics", langs:"Spanish, English, Portuguese, French" },
-    home: { name:"Villa Serena", address:"Piantini, Santo Domingo", rate:"$280/night", amenities:"Pool \u00b7 Private nurse \u00b7 Chef \u00b7 AC \u00b7 WiFi", phone:"+1 809 555 1001", email:"info@villaserena.com" }
+    home: { name:"Villa Serena", address:"Piantini, Santo Domingo", rate:"$280/night", amenities:"Pool \u00b7 Private nurse \u00b7 Chef \u00b7 AC \u00b7 WiFi", phone:"+1 809 555 1001", email:"info@villaserena.com" },
+    nurse: { name:"Ana Reyes", specialty:"Post-op Care", license:"RN-8821", home:"Villa Serena", experience:8, langs:"Spanish, English", bio:"Specialized in post-operative care and recovery management. 8 years of experience with international patients.", rating:"4.8", cases:52, phone:"+1 809 555 2001", email:"areyes@villaserena.com", certifications:"RN, BLS, ACLS, WOCN" }
   };
 
   const DEMO_NETWORK = {
@@ -802,6 +934,11 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       { name:"Casa Brisa",           address:"Naco, Santo Domingo",       rate:"$220/night", amenities:"Pool, AC, On-call nurse, WiFi",              phone:"+1 809 555 1002", email:"info@casabrisa.com",     beds:6, available:2 },
       { name:"Punta Suites",         address:"Punta Cana",                rate:"$350/night", amenities:"Medical staff 24/7, Full board, Transport",  phone:"+1 809 555 1003", email:"info@puntasuites.com",   beds:8, available:5 },
       { name:"Residencial Sol",      address:"Gazcue, Santo Domingo",     rate:"$160/night", amenities:"Shared cook, Transport, AC, WiFi",           phone:"+1 809 555 1004", email:"info@residencialsol.com",beds:3, available:2 }
+    ],
+    nurses: [
+      { name:"Ana Reyes",            specialty:"Post-op Care",            home:"Villa Serena",       rating:"4.8", cases:52, langs:"ES, EN",     license:"RN-8821", experience:8,  bio:"Specialized in post-operative care and recovery management. 8 years with international patients.", certifications:"RN, BLS, ACLS, WOCN", phone:"+1 809 555 2001", email:"areyes@villaserena.com" },
+      { name:"Mar\u00eda Santos",     specialty:"Wound Care",              home:"Casa Brisa",         rating:"4.9", cases:38, langs:"ES, EN, PT", license:"RN-7543", experience:6,  bio:"Expert in wound care and infection prevention. Fluent in multiple languages.",        certifications:"RN, BLS, WOCN, CWON", phone:"+1 809 555 2002", email:"msantos@casabrisa.com" },
+      { name:"Carmen L\u00f3pez",     specialty:"General Nursing",         home:"Punta Suites",       rating:"4.7", cases:45, langs:"ES, EN, FR", license:"RN-9201", experience:10, bio:"Versatile nurse with 10 years experience in private and medical settings.",           certifications:"RN, BLS, ACLS, CEN",  phone:"+1 809 555 2003", email:"clopez@puntasuites.com" }
     ]
   };
 
@@ -1117,6 +1254,23 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
           React.createElement(ViewBtn,{onClick:e=>{e.stopPropagation();openDetail(homeObj,"home");}})
         )
       ),
+      React.createElement(Section, { title:"Your Assigned Nurse" },
+        React.createElement("div",{style:{...s.card,display:"flex",gap:20,alignItems:"flex-start"}},
+          React.createElement("div",{style:{width:56,height:56,borderRadius:"50%",background:T[100],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:20,fontWeight:600,color:T[700],flexShrink:0}},"AR"),
+          React.createElement("div",{style:{flex:1}},
+            React.createElement("div",{style:{fontSize:15,fontWeight:600,color:G[900],marginBottom:2}},team.nurse.name),
+            React.createElement("div",{style:{fontSize:13,color:G[500],marginBottom:8}},team.nurse.specialty+" \u00b7 "+team.nurse.home),
+            React.createElement("p",{style:{fontSize:13,color:G[600],lineHeight:1.7,marginBottom:10}},team.nurse.bio),
+            React.createElement("div",{style:{display:"flex",gap:16,fontSize:12,color:G[500],marginBottom:12}},
+              React.createElement("span",null,team.nurse.experience+" yrs experience"),
+              React.createElement("span",null,"License: "+team.nurse.license),
+              React.createElement("span",null,team.nurse.langs)
+            ),
+            React.createElement("div",{style:{fontSize:12,color:G[500]}},"Certifications: "+team.nurse.certifications)
+          ),
+          React.createElement("button",{onClick:()=>navTo("Messages","case","messages"),style:{...s.btnGhost,fontSize:12,padding:"8px 16px",flexShrink:0,whiteSpace:"nowrap"}},"Send message")
+        )
+      ),
       React.createElement(Section, { title:"Your Coordinator" },
         React.createElement("div",{style:{...s.card,display:"flex",gap:20,alignItems:"center"}},
           React.createElement("div",{style:{width:56,height:56,borderRadius:"50%",background:G[200],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:20,fontWeight:600,color:G[600],flexShrink:0}},"SR"),
@@ -1138,8 +1292,8 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       if (networkDetailType==="clinic")  return React.createElement(ClinicDetailScreen, { clinic:selectedNetworkItem, onBack:closeDetail });
       if (networkDetailType==="home")    return React.createElement(HomeDetailScreen,   { home:selectedNetworkItem, onBack:closeDetail });
     }
-    const data = isDemo ? DEMO_NETWORK : (networkData || { doctors:[], clinics:[], homes:[] });
-    const tabs = [["doctors","Surgeons"],["clinics","Clinics"],["homes","Recovery Homes"]];
+    const data = isDemo ? DEMO_NETWORK : (networkData || { doctors:[], clinics:[], homes:[], nurses:[] });
+    const tabs = [["doctors","Surgeons"],["clinics","Clinics"],["homes","Recovery Homes"],["nurses","Nursing Staff"]];
     const CardBtn = ({ onClick }) => React.createElement("button",{onClick,style:{...s.btnGhost,fontSize:12,padding:"6px 14px",display:"flex",alignItems:"center",gap:5}},React.createElement(Icon,{name:"arrowLeft",size:12,color:G[500],style:{transform:"rotate(180deg)"}}), "View");
     return React.createElement("div", { className:"dash-screen", style:{ flex:1, padding:32, overflowY:"auto" } },
       React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}},
@@ -1200,23 +1354,54 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
               React.createElement("div",{style:{fontSize:11,color:G[500],marginBottom:12}},(Array.isArray(home.amenities)?home.amenities.join(", "):(home.amenities||""))),
               React.createElement("button",{onClick:()=>openDetail(home,"home"),style:{...s.btnGhost,fontSize:12,padding:"7px 14px",width:"100%"}},"View details")
             ))
+      ),
+      exploreTab==="nurses" && React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+        data.nurses.length===0
+          ? React.createElement("div",{style:{...s.card,textAlign:"center",padding:"48px 20px",color:G[400]}},"No nurses listed yet")
+          : data.nurses.map((nurse,i)=>React.createElement("div",{key:i,style:{...s.card,display:"flex",alignItems:"center",gap:16}},
+              React.createElement("div",{style:{width:48,height:48,borderRadius:"50%",background:T[800],display:"flex",alignItems:"center",justifyContent:"center",fontFamily:serif,fontSize:16,fontWeight:600,color:T[200],flexShrink:0}},
+                (nurse.name||"").split(" ").filter(w=>w[0]>="A"&&w[0]<="Z").slice(0,2).map(w=>w[0]).join("")
+              ),
+              React.createElement("div",{style:{flex:1}},
+                React.createElement("div",{style:{fontSize:14,fontWeight:600,color:G[900]}},(nurse.name||"")),
+                React.createElement("div",{style:{fontSize:12,color:G[500],marginTop:2}},(nurse.specialty||"")+" \u00b7 "+((nurse.home)||"")),
+                React.createElement("div",{style:{fontSize:11,color:G[400],marginTop:2}},"Certifications: "+(nurse.certifications||""))
+              ),
+              React.createElement("div",{style:{textAlign:"right",flexShrink:0,marginRight:8}},
+                React.createElement("div",{style:{fontSize:13,fontWeight:600,color:T[600]}},(nurse.rating||"4.0")+" ","","✯"),
+                React.createElement("div",{style:{fontSize:11,color:G[400]}},(nurse.cases||0)+" cases")
+              ),
+              React.createElement(CardBtn,{onClick:()=>openDetail(nurse,"nurse")})
+            ))
       )
     );
   };
 
   // ── Notificaciones del paciente ──────────────────────────────────────────
-  const [notifications, setNotifications] = useState(isDemo ? [
-    { id: 1, type: "heart", title: "Coordinator assigned", body: "Laura Mendez has been assigned as your care coordinator.", time: "2 hours ago", read: false },
-    { id: 2, type: "document", title: "New document", body: "Your pre-op instructions have been uploaded.", time: "1 day ago", read: false },
-    { id: 3, type: "video", title: "Teleconsult reminder", body: "Your initial consultation is tomorrow at 10:00 AM.", time: "2 days ago", read: true },
-    { id: 4, type: "check", title: "Checklist updated", body: "Your recovery checklist has been updated.", time: "3 days ago", read: true }
-  ] : []);
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem("praesenti_notifs_patient_" + (user?.id || "demo"));
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return isDemo ? [
+      { id: 1, type: "heart", title: "Coordinator assigned", body: "Laura Mendez has been assigned as your care coordinator.", time: "2 hours ago", read: false },
+      { id: 2, type: "document", title: "New document", body: "Your pre-op instructions have been uploaded.", time: "1 day ago", read: false },
+      { id: 3, type: "video", title: "Teleconsult reminder", body: "Your initial consultation is tomorrow at 10:00 AM.", time: "2 days ago", read: true },
+      { id: 4, type: "check", title: "Checklist updated", body: "Your recovery checklist has been updated.", time: "3 days ago", read: true }
+    ] : [];
+  });
+  
+  useEffect(() => {
+    localStorage.setItem("praesenti_notifs_patient_" + (user?.id || "demo"), JSON.stringify(notifications));
+  }, [notifications, user?.id]);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
   const markRead = id => setNotifications(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
 
   const NotifBell = () => React.createElement("div", { style: { position: "relative" } },
-    React.createElement("button", { onClick: () => setNotifOpen(o => !o), style: { background: "none", border: `1px solid ${G[200]}`, borderRadius: 8, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" } },
+    notifOpen && React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 199 }, onClick: () => setNotifOpen(false) }),
+    React.createElement("button", { onClick: () => setNotifOpen(o => !o), style: { background: "none", border: `1px solid ${G[200]}`, borderRadius: 8, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative", zIndex: 200 } },
       React.createElement(Icon, { name: "alertCircle", size: 18, color: unreadCount > 0 ? T[600] : G[400] }),
       unreadCount > 0 && React.createElement("span", { style: { position: "absolute", top: -5, right: -5, width: 18, height: 18, borderRadius: "50%", background: T[500], color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" } }, unreadCount)
     ),
@@ -1226,7 +1411,7 @@ export const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
         unreadCount > 0 && React.createElement("button", { onClick: () => setNotifications(ns => ns.map(n => ({ ...n, read: true }))), style: { fontSize: 11, color: T[600], background: "none", border: "none", cursor: "pointer", fontFamily: sans } }, "Mark all read")
       ),
       React.createElement("div", { style: { maxHeight: 320, overflowY: "auto" } },
-        notifications.map(n => React.createElement("div", { key: n.id, onClick: () => { markRead(n.id); setNotifOpen(false); }, style: { display: "flex", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${G[100]}`, cursor: "pointer", background: n.read ? "#fff" : T[50] } },
+        notifications.map(n => React.createElement("div", { key: n.id, onClick: () => { markRead(n.id); }, style: { display: "flex", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${G[100]}`, cursor: "pointer", background: n.read ? "#fff" : T[50] } },
           React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: n.read ? G[100] : T[100], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 } },
             React.createElement(Icon, { name: n.type, size: 14, color: n.read ? G[400] : T[600] })
           ),

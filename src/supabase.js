@@ -1,11 +1,18 @@
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
+import { SUPABASE_URL as SUPA_URL, SUPABASE_KEY as SUPA_KEY } from './config.js';
+
+const getAuthHeader = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("session_user"));
+    if (user && user.token) return `Bearer ${user.token}`;
+  } catch (e) {}
+  return `Bearer ${SUPA_KEY}`;
+};
 
 export const fetchChecklist = async (casoId) => {
   if (!SUPA_URL || !SUPA_KEY || !casoId) return null;
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/checklist?caso_id=eq.${casoId}&select=*`, {
-      headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+      headers: { apikey: SUPA_KEY, "Authorization": getAuthHeader() }
     });
     const data = await res.json();
     if (data.error) throw data.error;
@@ -20,7 +27,7 @@ export const saveChecklist = async (casoId, items, coordinatorId) => {
   if (!SUPA_URL || !SUPA_KEY || !casoId) return;
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/checklist?caso_id=eq.${casoId}&select=checklist_id`, {
-      headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+      headers: { apikey: SUPA_KEY, "Authorization": getAuthHeader() }
     });
     const data = await res.json();
     const existingId = data && data[0] ? data[0].checklist_id : null;
@@ -28,13 +35,13 @@ export const saveChecklist = async (casoId, items, coordinatorId) => {
     if (existingId) {
       await fetch(`${SUPA_URL}/rest/v1/checklist?checklist_id=eq.${existingId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Prefer": "return=minimal" },
+        headers: { "Content-Type": "application/json", apikey: SUPA_KEY, "Authorization": getAuthHeader(), "Prefer": "return=minimal" },
         body: JSON.stringify({ items, completado_por: coordinatorId, completado: isFull, fecha_completado: isFull ? new Date().toISOString() : null })
       });
     } else {
       await fetch(`${SUPA_URL}/rest/v1/checklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Prefer": "return=minimal" },
+        headers: { "Content-Type": "application/json", apikey: SUPA_KEY, "Authorization": getAuthHeader(), "Prefer": "return=minimal" },
         body: JSON.stringify({ caso_id: casoId, items, completado_por: coordinatorId, tipo: "recovery", completado: isFull, fecha_completado: isFull ? new Date().toISOString() : null })
       });
     }
@@ -49,7 +56,7 @@ export const fetchDocuments = async (casoId, authUserId) => {
     let allDocs = [];
     if (casoId) {
       const res = await fetch(`${SUPA_URL}/rest/v1/documentos?caso_id=eq.${casoId}&select=*`, {
-        headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+        headers: { apikey: SUPA_KEY, "Authorization": getAuthHeader() }
       });
       const data = await res.json();
       if (Array.isArray(data)) allDocs = data;
@@ -72,20 +79,25 @@ export const uploadDocument = async (casoId, file, authUserId, reqType) => {
     const fileName = `${effectiveId}/${rand}-${file.name}`;
     const storageRes = await fetch(`${SUPA_URL}/storage/v1/object/paciente_docs/${fileName}`, {
       method: "POST",
-      headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Content-Type": file.type || "application/octet-stream" },
+      headers: { apikey: SUPA_KEY, "Authorization": getAuthHeader(), "Content-Type": file.type || "application/octet-stream" },
       body: file
     });
-    if (!storageRes.ok) throw new Error("Storage upload failed");
+    if (!storageRes.ok) {
+      const errText = await storageRes.text();
+      throw new Error("Fallo al subir a Storage (Verifica las políticas RLS del bucket 'paciente_docs'): " + errText);
+    }
     const publicUrl = `${SUPA_URL}/storage/v1/object/public/paciente_docs/${fileName}`;
     const sizeStr = (file.size / 1024).toFixed(0) + " KB";
     const docMeta = { name: file.name, size: sizeStr, url: publicUrl, req_type: reqType || file.name, created_at: new Date().toISOString() };
     if (casoId) {
       const res = await fetch(`${SUPA_URL}/rest/v1/documentos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Prefer": "return=representation" },
+        headers: { "Content-Type": "application/json", apikey: SUPA_KEY, "Authorization": getAuthHeader(), "Prefer": "return=representation" },
         body: JSON.stringify({ caso_id: casoId, name: docMeta.name, size: docMeta.size, url: docMeta.url, req_type: docMeta.req_type })
       });
       const dbRes = await res.json();
+      if (dbRes.error || !res.ok) throw new Error("Error guardando en BD (Verifica RLS de tabla 'documentos'): " + JSON.stringify(dbRes));
+      if (!dbRes || dbRes.length === 0) throw new Error("La BD no devolvió el ID del documento (Verifica RLS de SELECT en 'documentos')");
       if (dbRes && dbRes[0]) docMeta.id = dbRes[0].id;
     } else if (authUserId) {
       const local = localStorage.getItem("demo_docs_" + authUserId);
@@ -107,13 +119,13 @@ export const deleteDocument = async (docId, url, authUserId) => {
     if (path) {
       await fetch(`${SUPA_URL}/storage/v1/object/paciente_docs/${path}`, {
         method: "DELETE",
-        headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+        headers: { apikey: SUPA_KEY, "Authorization": getAuthHeader() }
       });
     }
     if (docId && docId.length > 20) {
       await fetch(`${SUPA_URL}/rest/v1/documentos?id=eq.${docId}`, {
         method: "DELETE",
-        headers: { apikey: SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+        headers: { apikey: SUPA_KEY, "Authorization": getAuthHeader() }
       });
     }
     if (authUserId) {

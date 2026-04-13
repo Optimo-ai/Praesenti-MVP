@@ -25,7 +25,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
   const [saving, setSaving]           = useState(false);
   const [selectedTeamMember, setSelectedTeamMember] = useState(null);
 
-  const [coordAssign, setCoordAssign] = useState({ status:"", surgeon:"", clinic:"", home:"", surgery_date:"", discharge_date:"", home_checkin:"", notes:"" });
+  const [coordAssign, setCoordAssign] = useState({ status:"", surgeon:"", clinic:"", home:"", nurse:"", surgery_date:"", discharge_date:"", home_checkin:"", notes:"" });
   const [coordAssignSaved, setCoordAssignSaved] = useState(false);
 
   useEffect(() => {
@@ -34,7 +34,8 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
         status: selectedCase.status || "", 
         surgeon: selectedCase.surgeon && selectedCase.surgeon !== "—" ? selectedCase.surgeon : "— Unassigned —", 
         clinic: selectedCase.clinic || "— Unassigned —",
-        home: selectedCase.home || "— Unassigned —", 
+        home: selectedCase.home || "— Unassigned —",
+        nurse: selectedCase.nurse || "— Unassigned —",
         surgery_date: selectedCase.date || "", 
         discharge_date: "", 
         home_checkin: "", 
@@ -97,12 +98,23 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
   }, [msgs]);
 
   // ── notifications ──────────────────────────────────────────────────────
-  const [notifications, setNotifications] = useState([
-    { id:1, type:"case",      title:"New lead assigned",   body:"Rafael Oliveira requested a hair transplant consultation.",  time:"5 min ago",  read:false, caseId:"C-004" },
-    { id:2, type:"message",   title:"Patient message",     body:"Emily Thornton sent a message about her recovery.",         time:"18 min ago", read:false, caseId:"C-001" },
-    { id:3, type:"checklist", title:"Checklist updated",   body:"Marcus Webb pre-op checklist marked complete.",            time:"1h ago",     read:true,  caseId:"C-002" },
-    { id:4, type:"alert",     title:"Follow-up pending",   body:"Isabelle Fontaine has her 7-day review today.",            time:"2h ago",     read:true,  caseId:"C-003" }
-  ]);
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem("praesenti_notifs_coord_" + (user?.id || "demo"));
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return [
+      { id:1, type:"case",      title:"New lead assigned",   body:"Rafael Oliveira requested a hair transplant consultation.",  time:"5 min ago",  read:false, caseId:"C-004" },
+      { id:2, type:"message",   title:"Patient message",     body:"Emily Thornton sent a message about her recovery.",         time:"18 min ago", read:false, caseId:"C-001" },
+      { id:3, type:"checklist", title:"Checklist updated",   body:"Marcus Webb pre-op checklist marked complete.",            time:"1h ago",     read:true,  caseId:"C-002" },
+      { id:4, type:"alert",     title:"Follow-up pending",   body:"Isabelle Fontaine has her 7-day review today.",            time:"2h ago",     read:true,  caseId:"C-003" }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("praesenti_notifs_coord_" + (user?.id || "demo"), JSON.stringify(notifications));
+  }, [notifications, user?.id]);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
   const markRead    = id => setNotifications(ns => ns.map(n => n.id===id ? {...n, read:true} : n));
@@ -226,7 +238,8 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
 
   // ── NotifBell ──────────────────────────────────────────────────────────
   const NotifBell = () => React.createElement("div", { style:{ position:"relative" } },
-    React.createElement("button", { onClick:()=>setNotifOpen(o=>!o), style:{ background:"none", border:`1px solid ${G[200]}`, borderRadius:8, width:38, height:38, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", position:"relative" } },
+    notifOpen && React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 199 }, onClick: () => setNotifOpen(false) }),
+    React.createElement("button", { onClick:()=>setNotifOpen(o=>!o), style:{ background:"none", border:`1px solid ${G[200]}`, borderRadius:8, width:38, height:38, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", position:"relative", zIndex: 200 } },
       React.createElement(Icon, { name:"alertCircle", size:18, color:unreadCount>0?T[600]:G[400] }),
       unreadCount>0 && React.createElement("span", { style:{ position:"absolute", top:-5, right:-5, width:18, height:18, borderRadius:"50%", background:T[500], color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #fff" } }, unreadCount)
     ),
@@ -486,6 +499,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
     const SURGEON_OPTS = ["\u2014 Unassigned \u2014", "Dr. Marcus Varela", "Dr. Carlos Romero", "Dr. Ivan Castillo", "Dr. Ramon Herrera", "Dr. A. Vargas", "Dr. C. Romero", "Dr. M. Medina"];
     const CLINIC_OPTS  = ["\u2014 Unassigned \u2014", "Bella Forma Clinic", "Centro Medico", "Clinica del Sol", "DentalPro", "Cl\u00ednica Vida", "Hospital del Este"];
     const HOME_OPTS    = ["\u2014 Unassigned \u2014", "Villa Serena", "Casa Brisa", "Punta Suites", "Residencial Sol"];
+    const NURSE_OPTS   = ["\u2014 Unassigned \u2014", "Ana Reyes (Post-op Care)", "Mar\u00eda Santos (Wound Care)", "Carmen L\u00f3pez (General Nursing)"];
 
     const handleRecommend = (e) => {
       if (e && e.preventDefault) e.preventDefault();
@@ -494,15 +508,16 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
       let bestSurgeon = "\u2014 Unassigned \u2014";
       let bestClinic = "\u2014 Unassigned \u2014";
       let bestHome = "\u2014 Unassigned \u2014";
-      if (proc.includes("hair")) { bestSurgeon = "Dr. Ivan Castillo"; bestClinic = "Clinica del Sol"; }
-      else if (proc.includes("bariatric") || proc.includes("weight")) { bestSurgeon = "Dr. Carlos Romero"; bestClinic = "Centro Medico"; }
-      else if (proc.includes("dental") || proc.includes("veneer")) { bestSurgeon = "Dr. Ramon Herrera"; bestClinic = "DentalPro"; }
-      else { bestSurgeon = "Dr. Marcus Varela"; bestClinic = "Bella Forma Clinic"; }
+      let bestNurse = "\u2014 Unassigned \u2014";
+      if (proc.includes("hair")) { bestSurgeon = "Dr. Ivan Castillo"; bestClinic = "Clinica del Sol"; bestNurse = "Carmen L\u00f3pez (General Nursing)"; }
+      else if (proc.includes("bariatric") || proc.includes("weight")) { bestSurgeon = "Dr. Carlos Romero"; bestClinic = "Centro Medico"; bestNurse = "Mar\u00eda Santos (Wound Care)"; }
+      else if (proc.includes("dental") || proc.includes("veneer")) { bestSurgeon = "Dr. Ramon Herrera"; bestClinic = "DentalPro"; bestNurse = "Carmen L\u00f3pez (General Nursing)"; }
+      else { bestSurgeon = "Dr. Marcus Varela"; bestClinic = "Bella Forma Clinic"; bestNurse = "Ana Reyes (Post-op Care)"; }
       if (budgetNum > 6000) bestHome = "Punta Suites";
       else if (budgetNum > 4000) bestHome = "Villa Serena";
       else bestHome = "Residencial Sol";
-      setAssign(a => ({ ...a, surgeon: bestSurgeon, clinic: bestClinic, home: bestHome }));
-      showToast("AI match applied based on budget & procedure");
+      setAssign(a => ({ ...a, surgeon: bestSurgeon, clinic: bestClinic, home: bestHome, nurse: bestNurse }));
+      showToast("AI match applied based on budget \u0026 procedure");
     };
 
     const handleSave = async () => {
@@ -519,6 +534,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
                 cirujano_id: assign.surgeon !== "\u2014 Unassigned \u2014" ? assign.surgeon : null,
                 clinica_id: assign.clinic !== "\u2014 Unassigned \u2014" ? assign.clinic : null,
                 recovery_home_id: assign.home !== "\u2014 Unassigned \u2014" ? assign.home : null,
+                nurse_id: assign.nurse !== "\u2014 Unassigned \u2014" ? assign.nurse : null,
                 estado: assign.status.toLowerCase()
               })
             });
@@ -528,6 +544,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
         c.surgeon = assign.surgeon !== "\u2014 Unassigned \u2014" ? assign.surgeon : null;
         c.clinic = assign.clinic !== "\u2014 Unassigned \u2014" ? assign.clinic : null;
         c.home = assign.home !== "\u2014 Unassigned \u2014" ? assign.home : null;
+        c.nurse = assign.nurse !== "\u2014 Unassigned \u2014" ? assign.nurse : null;
         c.status = assign.status;
 
         addNotif({ type:"case", title:"Case updated", body:`${c.name} assigned to ${assign.surgeon}.`, caseId:c.id });
@@ -568,6 +585,7 @@ export const CoordinatorDashboard = ({ onSignOut, user }) => {
             ),
             React.createElement(DRow,{l:"Assigned surgeon"},React.createElement(FSel,{val:assign.surgeon,onChange:set("surgeon"),options:SURGEON_OPTS})),
             React.createElement(DRow,{l:"Assigned clinic"},React.createElement(FSel,{val:assign.clinic,onChange:set("clinic"),options:CLINIC_OPTS})),
+            React.createElement(DRow,{l:"Assigned nurse"},React.createElement(FSel,{val:assign.nurse,onChange:set("nurse"),options:NURSE_OPTS})),
             assign.surgeon && assign.surgeon!=="\u2014 Unassigned \u2014" && React.createElement("div",{style:{padding:"10px 14px",background:T[50],border:`1px solid ${T[100]}`,borderRadius:8,marginTop:-4,fontSize:12.5,color:T[700]}},assign.surgeon+" will be notified of this case.")
           ),
           React.createElement("div", { style:s.card },

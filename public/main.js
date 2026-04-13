@@ -1,3 +1,7 @@
+import { AdminDashboard } from '../src/components/AdminDashboard.js';
+import { CoordinatorDashboard } from '../src/components/CoordinatorDashboard.js';
+import { NurseDashboard } from '../src/components/NurseDashboard.js';
+
 const { React, ReactDOM } = window;
 const { useState, useRef, useEffect, useCallback } = React;
 
@@ -270,6 +274,22 @@ const WZ_HNTS = ["", "No commitment required", "Takes about 30 seconds", "Your d
 const PROCS_LIST = ["Rhinoplasty", "Breast Augmentation", "Liposuction", "Tummy Tuck", "Hair Transplant", "Dental Veneers", "Bariatric Surgery", "Hip Replacement", "Eye Surgery", "Other"];
 const HEALTH_OPTS = ["Diabetes", "Hypertension", "Heart condition", "Asthma", "None of the above"];
 const WzFi = ({ type = "text", ph, val, onChange, err }) => /* @__PURE__ */ React.createElement("input", { type, value: val, onChange, placeholder: ph, style: { width: "100%", height: 42, border: `1px solid ${err ? "#fca5a5" : G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: err ? "#fffafb" : "#fff" } });
+const C_FLAGS = [{n:"United States", c:"us"},{n:"Canada", c:"ca"},{n:"United Kingdom", c:"gb"},{n:"Australia", c:"au"},{n:"Dominican Republic", c:"do"},{n:"Argentina", c:"ar"},{n:"Austria", c:"at"},{n:"Bahamas", c:"bs"},{n:"Belgium", c:"be"},{n:"Bolivia", c:"bo"},{n:"Brazil", c:"br"},{n:"Chile", c:"cl"},{n:"China", c:"cn"},{n:"Colombia", c:"co"},{n:"Costa Rica", c:"cr"},{n:"Croatia", c:"hr"},{n:"Cuba", c:"cu"},{n:"Czech Republic", c:"cz"},{n:"Denmark", c:"dk"},{n:"Ecuador", c:"ec"},{n:"Egypt", c:"eg"},{n:"El Salvador", c:"sv"},{n:"Finland", c:"fi"},{n:"France", c:"fr"},{n:"Germany", c:"de"},{n:"Greece", c:"gr"},{n:"Guatemala", c:"gt"},{n:"Honduras", c:"hn"},{n:"Hong Kong", c:"hk"},{n:"Hungary", c:"hu"},{n:"India", c:"in"},{n:"Indonesia", c:"id"},{n:"Ireland", c:"ie"},{n:"Israel", c:"il"},{n:"Italy", c:"it"},{n:"Jamaica", c:"jm"},{n:"Japan", c:"jp"},{n:"Malaysia", c:"my"},{n:"Mexico", c:"mx"},{n:"Netherlands", c:"nl"},{n:"New Zealand", c:"nz"},{n:"Nicaragua", c:"ni"},{n:"Norway", c:"no"},{n:"Panama", c:"pa"},{n:"Paraguay", c:"py"},{n:"Peru", c:"pe"},{n:"Philippines", c:"ph"},{n:"Poland", c:"pl"},{n:"Portugal", c:"pt"},{n:"Puerto Rico", c:"pr"},{n:"Russia", c:"ru"},{n:"Saudi Arabia", c:"sa"},{n:"Singapore", c:"sg"},{n:"South Africa", c:"za"},{n:"South Korea", c:"kr"},{n:"Spain", c:"es"},{n:"Sweden", c:"se"},{n:"Switzerland", c:"ch"},{n:"Taiwan", c:"tw"},{n:"Thailand", c:"th"},{n:"Turkey", c:"tr"},{n:"United Arab Emirates", c:"ae"},{n:"Uruguay", c:"uy"},{n:"Venezuela", c:"ve"},{n:"Vietnam", c:"vn"},{n:"Other", c:""}];
+const CountrySelect = ({ value, onChange, error }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => { const clickOut = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }; document.addEventListener("mousedown", clickOut); return () => document.removeEventListener("mousedown", clickOut); }, []);
+  const selected = C_FLAGS.find(c => c.n === value);
+  return /* @__PURE__ */ React.createElement("div", { ref, style: { position: "relative", width: "100%" } },
+    /* @__PURE__ */ React.createElement("div", { onClick: () => setOpen(!open), style: { width: "100%", height: 42, border: `1px solid ${error ? "#fca5a5" : G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, color: value ? G[900] : G[500], background: error ? "#fffafb" : "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" } },
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, selected && selected.c ? /* @__PURE__ */ React.createElement("img", { src: `https://flagcdn.com/w20/${selected.c}.png`, width: 20, alt: "" }) : null, value || "Select a country"),
+      /* @__PURE__ */ React.createElement(Icon, { name: "arrowLeft", size: 14, color: G[400], style: { transform: open ? "rotate(90deg)" : "rotate(-90deg)" } })
+    ),
+    open && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: `1px solid ${G[200]}`, borderRadius: 7, maxHeight: 220, overflowY: "auto", zIndex: 100, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" } },
+      C_FLAGS.map(c => /* @__PURE__ */ React.createElement("div", { key: c.n, onClick: () => { onChange(c.n); setOpen(false); }, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 13px", cursor: "pointer", fontSize: 13.5, color: G[900], background: value === c.n ? G[50] : "transparent" }, onMouseEnter: e => e.currentTarget.style.background = G[50], onMouseLeave: e => e.currentTarget.style.background = value === c.n ? G[50] : "transparent" }, c.c ? /* @__PURE__ */ React.createElement("img", { src: `https://flagcdn.com/w20/${c.c}.png`, width: 20, alt: "" }) : /* @__PURE__ */ React.createElement("div", { style: { width: 20 } }), c.n))
+    )
+  );
+};
 const WzLbl = ({ t }) => /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, t);
 const SuFi = ({ type = "text", ph, val, onChange, err, onEnter }) => /* @__PURE__ */ React.createElement("input", { type, value: val, onChange, placeholder: ph, onKeyDown: (e) => e.key === "Enter" && onEnter && onEnter(), style: { width: "100%", height: 42, border: `1px solid ${err ? "#fca5a5" : G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } });
 const SuLbl = ({ t }) => /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, t);
@@ -378,7 +398,8 @@ const supaGet = (table, params = "") => {
 const DEMO_ACCOUNTS = {
   "patient@praesenti.com": { password: "patient2024", role: "patient", fn: "Demo", ln: "Patient", isDemo: true },
   "admin@praesenti.com": { password: "admin2024", role: "admin", fn: "Admin", ln: "", isDemo: true },
-  "coordinator@praesenti.com": { password: "coord2024", role: "coordinator", fn: "Demo", ln: "Coordinator", isDemo: true }
+  "coordinator@praesenti.com": { password: "coord2024", role: "coordinator", fn: "Demo", ln: "Coordinator", isDemo: true },
+  "nurse@praesenti.com": { password: "nurse2024", role: "nurse", fn: "Ana", ln: "Reyes", isDemo: true }
 };
 const AuthModal = ({ open, onClose, onLogin, onSwitchToSignUp }) => {
   const [email, setEmail] = useState("");
@@ -466,7 +487,7 @@ const AuthModal = ({ open, onClose, onLogin, onSwitchToSignUp }) => {
   ), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", marginTop: 18, fontSize: 13, color: G[500] } }, "Don't have an account?", " ", /* @__PURE__ */ React.createElement("span", { onClick: () => {
     handleClose();
     onSwitchToSignIn();
-  }, style: { color: T[600], fontWeight: 500, cursor: "pointer" } }, "Create one")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, padding: "14px 16px", background: G[50], borderRadius: 8, border: `1px solid ${G[200]}` } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: G[500], letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 } }, "Demo accounts"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, [["Patient", "patient@praesenti.com", "patient2024"], ["Admin", "admin@praesenti.com", "admin2024"], ["Coordinator", "coordinator@praesenti.com", "coord2024"]].map(([label, em, pw]) => /* @__PURE__ */ React.createElement(
+  }, style: { color: T[600], fontWeight: 500, cursor: "pointer" } }, "Create one")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, padding: "14px 16px", background: G[50], borderRadius: 8, border: `1px solid ${G[200]}` } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: G[500], letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 } }, "Demo accounts"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, [["Patient", "patient@praesenti.com", "patient2024"], ["Admin", "admin@praesenti.com", "admin2024"], ["Coordinator", "coordinator@praesenti.com", "coord2024"], ["Nurse", "nurse@praesenti.com", "nurse2024"]].map(([label, em, pw]) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: label,
@@ -805,7 +826,7 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
   };
   const [profileForm, setProfileForm] = useState({ fn: firstName, ln: lastName, email: (user == null ? void 0 : user.email) || "", phone: "", country: "", lang: "English", emergency: "" });
   const [profileSaved, setProfileSaved] = useState(false);
-  const ProfileScreen = ({ profileForm, setProfileForm, profileSaved, setProfileSaved, showToast }) => /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto", maxWidth: 600 } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "My Profile"), /* @__PURE__ */ React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Manage your personal information and preferences"), /* @__PURE__ */ React.createElement("div", { style: s.card }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Personal information"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 } }, [["First name", "fn"], ["Last name", "ln"]].map(([lbl, key]) => /* @__PURE__ */ React.createElement("div", { key }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, lbl), /* @__PURE__ */ React.createElement("input", { value: profileForm[key], onChange: (e) => setProfileForm((f) => ({ ...f, [key]: e.target.value })), style: { width: "100%", height: 40, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 12px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } } ,)))), [["Email address", "email", "email"], ["Phone", "phone", "tel"], ["Country", "country", "text"], ["Preferred language", "lang", "text"], ["Emergency contact", "emergency", "text"]].map(([lbl, key, type]) => /* @__PURE__ */ React.createElement("div", { key, style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, lbl), /* @__PURE__ */ React.createElement("input", { type, value: profileForm[key], onChange: (e) => setProfileForm((f) => ({ ...f, [key]: e.target.value })), style: { width: "100%", height: 40, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 12px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } }))), profileSaved && /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: T[600], marginBottom: 10, fontWeight: 500 } }, "Changes saved successfully."), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  const ProfileScreen = ({ profileForm, setProfileForm, profileSaved, setProfileSaved, showToast }) => /* @__PURE__ */ React.createElement("div", { className: "dash-screen", style: { flex: 1, padding: 32, overflowY: "auto", maxWidth: 600 } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: serif, fontSize: 26, color: T[950], marginBottom: 4 } }, "My Profile"), /* @__PURE__ */ React.createElement("p", { style: { color: G[400], fontSize: 13, marginBottom: 28 } }, "Manage your personal information and preferences"), /* @__PURE__ */ React.createElement("div", { style: s.card }, /* @__PURE__ */ React.createElement("div", { style: { ...s.label, marginBottom: 16 } }, "Personal information"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 } }, [["First name", "fn"], ["Last name", "ln"]].map(([lbl, key]) => /* @__PURE__ */ React.createElement("div", { key }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, lbl), /* @__PURE__ */ React.createElement("input", { value: profileForm[key], onChange: (e) => setProfileForm((f) => ({ ...f, [key]: e.target.value })), style: { width: "100%", height: 40, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 12px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } } ,)))), [["Email address", "email", "email"], ["Phone", "phone", "tel"], ["Emergency contact", "emergency", "text"]].map(([lbl, key, type]) => /* @__PURE__ */ React.createElement("div", { key, style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, lbl), /* @__PURE__ */ React.createElement("input", { type, value: profileForm[key], onChange: (e) => setProfileForm((f) => ({ ...f, [key]: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 12px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900] } }))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, "Country"), /* @__PURE__ */ React.createElement("select", { value: profileForm.country, onChange: (e) => setProfileForm((f) => ({ ...f, country: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 12px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, [React.createElement("option", { key: "", value: "" }, "Select a country"), ...[{n:"United States",f:"🇺🇸"},{n:"Canada",f:"🇨🇦"},{n:"United Kingdom",f:"🇬🇧"},{n:"Australia",f:"🇦🇺"},{n:"Dominican Republic",f:"🇩🇴"},{n:"Argentina",f:"🇦🇷"},{n:"Austria",f:"🇦🇹"},{n:"Bahamas",f:"🇧🇸"},{n:"Belgium",f:"🇧🇪"},{n:"Bolivia",f:"🇧🇴"},{n:"Brazil",f:"🇧🇷"},{n:"Chile",f:"🇨🇱"},{n:"China",f:"🇨🇳"},{n:"Colombia",f:"🇨🇴"},{n:"Costa Rica",f:"🇨🇷"},{n:"Croatia",f:"🇭🇷"},{n:"Cuba",f:"🇨🇺"},{n:"Czech Republic",f:"🇨🇿"},{n:"Denmark",f:"🇩🇰"},{n:"Ecuador",f:"🇪🇨"},{n:"Egypt",f:"🇪🇬"},{n:"El Salvador",f:"🇸🇻"},{n:"Finland",f:"🇫🇮"},{n:"France",f:"🇫🇷"},{n:"Germany",f:"🇩🇪"},{n:"Greece",f:"🇬🇷"},{n:"Guatemala",f:"🇬🇹"},{n:"Honduras",f:"🇭🇳"},{n:"Hong Kong",f:"🇭🇰"},{n:"Hungary",f:"🇭🇺"},{n:"India",f:"🇮🇳"},{n:"Indonesia",f:"🇮🇩"},{n:"Ireland",f:"🇮🇪"},{n:"Israel",f:"🇮🇱"},{n:"Italy",f:"🇮🇹"},{n:"Jamaica",f:"🇯🇲"},{n:"Japan",f:"🇯🇵"},{n:"Malaysia",f:"🇲🇾"},{n:"Mexico",f:"🇲🇽"},{n:"Netherlands",f:"🇳🇱"},{n:"New Zealand",f:"🇳🇿"},{n:"Nicaragua",f:"🇳🇮"},{n:"Norway",f:"🇳🇴"},{n:"Panama",f:"🇵🇦"},{n:"Paraguay",f:"🇵🇾"},{n:"Peru",f:"🇵🇪"},{n:"Philippines",f:"🇵🇭"},{n:"Poland",f:"🇵🇱"},{n:"Portugal",f:"🇵🇹"},{n:"Puerto Rico",f:"🇵🇷"},{n:"Russia",f:"🇷🇺"},{n:"Saudi Arabia",f:"🇸🇦"},{n:"Singapore",f:"🇸🇬"},{n:"South Africa",f:"🇿🇦"},{n:"South Korea",f:"🇰🇷"},{n:"Spain",f:"🇪🇸"},{n:"Sweden",f:"🇸🇪"},{n:"Switzerland",f:"🇨🇭"},{n:"Taiwan",f:"🇹🇼"},{n:"Thailand",f:"🇹🇭"},{n:"Turkey",f:"🇹🇷"},{n:"United Arab Emirates",f:"🇦🇪"},{n:"Uruguay",f:"🇺🇾"},{n:"Venezuela",f:"🇻🇪"},{n:"Vietnam",f:"🇻🇳"},{n:"Other",f:"🌍"}].map((c) => React.createElement("option", { key: c.n, value: c.n }, c.f + " " + c.n))])), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, "Preferred language"), /* @__PURE__ */ React.createElement("select", { value: profileForm.lang, onChange: (e) => setProfileForm((f) => ({ ...f, lang: e.target.value })), style: { width: "100%", height: 42, border: `1px solid ${G[200]}`, borderRadius: 7, padding: "0 12px", fontSize: 13.5, fontFamily: sans, outline: "none", color: G[900], background: "#fff" } }, ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Arabic", "Chinese", "Japanese", "Korean", "Russian", "Other"].map((l) => React.createElement("option", { key: l, value: l }, l)))), profileSaved && /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: T[600], marginBottom: 10, fontWeight: 500 } }, "Changes saved successfully."), /* @__PURE__ */ React.createElement("button", { onClick: () => {
     setProfileSaved(true);
     showToast("Profile updated");
     setTimeout(() => setProfileSaved(false), 3e3);
@@ -1045,9 +1066,27 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
           .then(data => {
             if (data && data.email) {
               const meta = data.user_metadata || {};
-              const userRole = meta.role || "patient";
-              handleLogin(userRole, { fn: meta.fn || "", ln: meta.ln || "", email: data.email, id: data.id });
-              window.history.replaceState(null, "", window.location.pathname);
+              let userRole = meta.role || "patient";
+              const userEmail = data.email;
+              const checkRoles = async () => {
+                try {
+                  const headers = { "apikey": SUPA_KEY, "Authorization": `Bearer ${accessToken}` };
+                  const adminRes = await fetch(`${SUPA_URL}/rest/v1/admins?email=eq.${encodeURIComponent(userEmail)}&select=id`, { headers });
+                  if (adminRes.ok && (await adminRes.json()).length > 0) userRole = "admin";
+                  else {
+                    const coordRes = await fetch(`${SUPA_URL}/rest/v1/coordinadores?email=eq.${encodeURIComponent(userEmail)}&select=id`, { headers });
+                    if (coordRes.ok && (await coordRes.json()).length > 0) userRole = "coordinator";
+                    else {
+                      const nurseRes = await fetch(`${SUPA_URL}/rest/v1/nurses?email=eq.${encodeURIComponent(userEmail)}&select=id`, { headers });
+                      if (nurseRes.ok && (await nurseRes.json()).length > 0) userRole = "nurse";
+                      else userRole = "patient";
+                    }
+                  }
+                } catch(e) {}
+                handleLogin(userRole, { fn: meta.fn || "", ln: meta.ln || "", email: userEmail, id: data.id, token: accessToken });
+                window.history.replaceState(null, "", window.location.pathname);
+              };
+              checkRoles();
             }
           })
           .catch(err => console.error("Error confirming email token:", err));
@@ -1055,7 +1094,14 @@ const PatientDashboard = ({ onSignOut, user, autoWiz }) => {
       }
     }, []);
 
-    return /* @__PURE__ */ React.createElement("div", { style: s.page }, /* @__PURE__ */ React.createElement(Toast, { msg: toast, onDone: () => setToast(null) }), role === "landing" && /* @__PURE__ */ React.createElement(Landing, { onLogin: handleLogin, lang, setLang }), role === "patient" && /* @__PURE__ */ React.createElement(PatientDashboard, { onSignOut: handleSignOut, user, autoWiz: false }));
+  return /* @__PURE__ */ React.createElement("div", { style: s.page }, 
+    /* @__PURE__ */ React.createElement(Toast, { msg: toast, onDone: () => setToast(null) }), 
+    role === "landing" && /* @__PURE__ */ React.createElement(Landing, { onLogin: handleLogin, lang, setLang }), 
+    role === "patient" && /* @__PURE__ */ React.createElement(PatientDashboard, { onSignOut: handleSignOut, user, autoWiz: false }),
+    role === "admin" && /* @__PURE__ */ React.createElement(AdminDashboard, { onSignOut: handleSignOut, user }),
+    role === "coordinator" && /* @__PURE__ */ React.createElement(CoordinatorDashboard, { onSignOut: handleSignOut, user }),
+    role === "nurse" && /* @__PURE__ */ React.createElement(NurseDashboard, { onSignOut: handleSignOut, user })
+  );
   };
   const startApp = () => {
     const root = ReactDOM.createRoot(document.getElementById("root"));

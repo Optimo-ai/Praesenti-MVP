@@ -6,6 +6,32 @@ const { useState, useEffect } = React;
 
 // SUPA_URL/KEY read lazily inside async handlers
 
+const C_FLAGS = [
+  {n:"United States", c:"us"},{n:"Canada", c:"ca"},{n:"United Kingdom", c:"gb"},{n:"Australia", c:"au"},{n:"Dominican Republic", c:"do"},{n:"Argentina", c:"ar"},{n:"Austria", c:"at"},{n:"Bahamas", c:"bs"},{n:"Belgium", c:"be"},{n:"Bolivia", c:"bo"},{n:"Brazil", c:"br"},{n:"Chile", c:"cl"},{n:"China", c:"cn"},{n:"Colombia", c:"co"},{n:"Costa Rica", c:"cr"},{n:"Croatia", c:"hr"},{n:"Cuba", c:"cu"},{n:"Czech Republic", c:"cz"},{n:"Denmark", c:"dk"},{n:"Ecuador", c:"ec"},{n:"Egypt", c:"eg"},{n:"El Salvador", c:"sv"},{n:"Finland", c:"fi"},{n:"France", c:"fr"},{n:"Germany", c:"de"},{n:"Greece", c:"gr"},{n:"Guatemala", c:"gt"},{n:"Honduras", c:"hn"},{n:"Hong Kong", c:"hk"},{n:"Hungary", c:"hu"},{n:"India", c:"in"},{n:"Indonesia", c:"id"},{n:"Ireland", c:"ie"},{n:"Israel", c:"il"},{n:"Italy", c:"it"},{n:"Jamaica", c:"jm"},{n:"Japan", c:"jp"},{n:"Malaysia", c:"my"},{n:"Mexico", c:"mx"},{n:"Netherlands", c:"nl"},{n:"New Zealand", c:"nz"},{n:"Nicaragua", c:"ni"},{n:"Norway", c:"no"},{n:"Panama", c:"pa"},{n:"Paraguay", c:"py"},{n:"Peru", c:"pe"},{n:"Philippines", c:"ph"},{n:"Poland", c:"pl"},{n:"Portugal", c:"pt"},{n:"Puerto Rico", c:"pr"},{n:"Russia", c:"ru"},{n:"Saudi Arabia", c:"sa"},{n:"Singapore", c:"sg"},{n:"South Africa", c:"za"},{n:"South Korea", c:"kr"},{n:"Spain", c:"es"},{n:"Sweden", c:"se"},{n:"Switzerland", c:"ch"},{n:"Taiwan", c:"tw"},{n:"Thailand", c:"th"},{n:"Turkey", c:"tr"},{n:"United Arab Emirates", c:"ae"},{n:"Uruguay", c:"uy"},{n:"Venezuela", c:"ve"},{n:"Vietnam", c:"vn"},{n:"Other", c:""}
+];
+
+export const CountrySelect = ({ value, onChange, error }) => {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef(null);
+  useEffect(() => {
+    const clickOut = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", clickOut);
+    return () => document.removeEventListener("mousedown", clickOut);
+  }, []);
+  const selected = C_FLAGS.find(c => c.n === value);
+  return React.createElement("div", { ref, style: { position: "relative", width: "100%" } },
+    React.createElement("div", { onClick: () => setOpen(!open), style: { width: "100%", height: 42, border: `1px solid ${error ? "#fca5a5" : G[200]}`, borderRadius: 7, padding: "0 13px", fontSize: 13.5, fontFamily: sans, color: value ? G[900] : G[500], background: error ? "#fffafb" : "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, selected && selected.c ? React.createElement("img", { src: `https://flagcdn.com/w20/${selected.c}.png`, width: 20, alt: "" }) : null, value || "Select a country"),
+      React.createElement(Icon, { name: "arrowLeft", size: 14, color: G[400], style: { transform: open ? "rotate(90deg)" : "rotate(-90deg)" } })
+    ),
+    open && React.createElement("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: `1px solid ${G[200]}`, borderRadius: 7, maxHeight: 220, overflowY: "auto", zIndex: 100, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" } },
+      C_FLAGS.map(c => React.createElement("div", { key: c.n, onClick: () => { onChange(c.n); setOpen(false); }, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 13px", cursor: "pointer", fontSize: 13.5, color: G[900], background: value === c.n ? G[50] : "transparent" }, onMouseEnter: e => e.currentTarget.style.background = G[50], onMouseLeave: e => e.currentTarget.style.background = value === c.n ? G[50] : "transparent" },
+        c.c ? React.createElement("img", { src: `https://flagcdn.com/w20/${c.c}.png`, width: 20, alt: "" }) : React.createElement("div", { style: { width: 20 } }), c.n
+      ))
+    )
+  );
+};
+
 export const Wizard = ({ open, onClose, prefill, onComplete, user }) => {
   const [step, setStep] = useState(1);
   const [proc, setProc] = useState("");

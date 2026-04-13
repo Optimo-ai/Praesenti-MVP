@@ -24,7 +24,8 @@ const supaFetch = (path, body) => {
 const DEMO_ACCOUNTS = {
   "patient@praesenti.com": { password: "patient2024", role: "patient", fn: "Maria", ln: "Vasquez", isDemo: true, id: "demo-patient-001" },
   "admin@praesenti.com": { password: "admin2024", role: "admin", fn: "Admin", ln: "", isDemo: true, id: "demo-admin-001" },
-  "coordinator@praesenti.com": { password: "coord2024", role: "coordinator", fn: "Ana", ln: "Rodríguez", isDemo: true, id: "demo-coord-001" }
+  "coordinator@praesenti.com": { password: "coord2024", role: "coordinator", fn: "Ana", ln: "Rodríguez", isDemo: true, id: "demo-coord-001" },
+  "nurse@praesenti.com": { password: "nurse2024", role: "nurse", fn: "Ana", ln: "Reyes", isDemo: true, id: "demo-nurse-001" }
 };
 
 export const AuthModal = ({ open, onClose, onLogin, onSwitchToSignUp }) => {
@@ -67,11 +68,32 @@ export const AuthModal = ({ open, onClose, onLogin, onSwitchToSignUp }) => {
       return;
     }
     const meta = ((_a = data.user) == null ? void 0 : _a.user_metadata) || {};
-    const role = meta.role || "patient";
+    let role = meta.role || "patient";
     const userId = data.user?.id;
+    const userEmail = data.user?.email;
+    
+    try {
+      const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPA_KEY = import.meta.env.VITE_SUPABASE_KEY;
+      if (SUPA_URL && SUPA_KEY) {
+        const headers = { "apikey": SUPA_KEY, "Authorization": `Bearer ${data.access_token}` };
+        const adminRes = await fetch(`${SUPA_URL}/rest/v1/admins?email=eq.${encodeURIComponent(userEmail)}&select=id`, { headers });
+        if (adminRes.ok && (await adminRes.json()).length > 0) role = "admin";
+        else {
+          const coordRes = await fetch(`${SUPA_URL}/rest/v1/coordinadores?email=eq.${encodeURIComponent(userEmail)}&select=id`, { headers });
+          if (coordRes.ok && (await coordRes.json()).length > 0) role = "coordinator";
+          else {
+            const nurseRes = await fetch(`${SUPA_URL}/rest/v1/nurses?email=eq.${encodeURIComponent(userEmail)}&select=id`, { headers });
+            if (nurseRes.ok && (await nurseRes.json()).length > 0) role = "nurse";
+            else role = "patient";
+          }
+        }
+      }
+    } catch(e) { console.warn("Strict role check error", e); }
+
     reset();
     onClose();
-    onLogin(role, { fn: meta.fn || "", ln: meta.ln || "", email: data.user.email, id: userId });
+    onLogin(role, { fn: meta.fn || "", ln: meta.ln || "", email: userEmail, id: userId, token: data.access_token });
   };
   return /* @__PURE__ */ React.createElement(Modal, { open, onClose: handleClose }, /* @__PURE__ */ React.createElement("div", { style: { padding: "28px 28px 32px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: serif, fontSize: 22, color: T[950] } }, "Welcome back"), /* @__PURE__ */ React.createElement("button", { onClick: handleClose, style: { background: "none", border: "none", color: G[400], cursor: "pointer", padding: 4, display: "flex", alignItems: "center" } }, /* @__PURE__ */ React.createElement(Icon, { name: "close", size: 18, color: G[400] }))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 500, color: G[700], marginBottom: 5 } }, "Email"), /* @__PURE__ */ React.createElement(
     "input",
@@ -112,7 +134,7 @@ export const AuthModal = ({ open, onClose, onLogin, onSwitchToSignUp }) => {
       handleClose();
       onSwitchToSignUp();
     }, style: { color: T[600], fontWeight: 500, cursor: "pointer" }
-  }, "Create one")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, padding: "14px 16px", background: G[50], borderRadius: 8, border: `1px solid ${G[200]}` } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: G[500], letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 } }, "Demo accounts"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, [["Patient", "patient@praesenti.com", "patient2024"], ["Admin", "admin@praesenti.com", "admin2024"], ["Coordinator", "coordinator@praesenti.com", "coord2024"]].map(([label, em, pw]) => /* @__PURE__ */ React.createElement(
+  }, "Create one")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, padding: "14px 16px", background: G[50], borderRadius: 8, border: `1px solid ${G[200]}` } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: G[500], letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 } }, "Demo accounts"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, [["Patient", "patient@praesenti.com", "patient2024"], ["Admin", "admin@praesenti.com", "admin2024"], ["Coordinator", "coordinator@praesenti.com", "coord2024"], ["Nurse", "nurse@praesenti.com", "nurse2024"]].map(([label, em, pw]) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: label,

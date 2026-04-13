@@ -2,6 +2,7 @@ import { Landing } from './components/Landing.js';
 import { PatientDashboard } from './components/PatientDashboard.js';
 import { AdminDashboard } from './components/AdminDashboard.js';
 import { CoordinatorDashboard } from './components/CoordinatorDashboard.js';
+import { NurseDashboard } from './components/NurseDashboard.js';
 
 const { React, ReactDOM } = window;
 const { useState, useEffect } = React;
@@ -40,7 +41,7 @@ const App = () => {
         .then(data => {
           if (data && data.id) {
             const meta = data.user_metadata || {};
-            const userData = { id: data.id, fn: meta.fn || "", ln: meta.ln || "", email: data.email };
+            const userData = { id: data.id, fn: meta.fn || "", ln: meta.ln || "", email: data.email, token: accessToken };
             setUser(userData);
             setView("patient");
             localStorage.setItem("session_user", JSON.stringify(userData));
@@ -79,6 +80,36 @@ const App = () => {
     history.pushState({ role, dash: role }, "", "#" + role);
   };
 
+  // Check if user is admin when currently showing "patient" view (might be misclassified)
+  useEffect(() => {
+    if (!user || !user.email || view !== "patient") return;
+    
+    let isMounted = true;
+    const checkIfAdmin = async () => {
+      try {
+        const sUrl = window.SUPA_URL || import.meta.env.VITE_SUPABASE_URL;
+        const sKey = window.SUPA_KEY || import.meta.env.VITE_SUPABASE_KEY;
+        if (!sUrl || !sKey) return;
+        
+        const h = { "Content-Type":"application/json", apikey: sKey, Authorization: "Bearer " + (user.token || sKey) };
+        const res = await fetch(sUrl + "/rest/v1/admins?email=eq." + encodeURIComponent(user.email), { headers: h });
+        const admins = await res.json();
+        
+        if (isMounted && admins && admins.length > 0) {
+          // User is actually an admin, redirect
+          setView("admin");
+          localStorage.setItem("session_view", "admin");
+          history.pushState({ role: "admin", dash: "admin" }, "", "#admin");
+        }
+      } catch(e) {
+        console.log("Admin check error:", e);
+      }
+    };
+    
+    checkIfAdmin();
+    return () => { isMounted = false; };
+  }, [user?.email]);
+
 
   if (checking) return /* @__PURE__ */ React.createElement("div", {
     style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", background: "#f0fdfb" }
@@ -102,6 +133,7 @@ const App = () => {
     }
   });
   if (view === "admin") return /* @__PURE__ */ React.createElement(AdminDashboard, {
+    user,
     onSignOut: () => {
       localStorage.removeItem("session_user");
       localStorage.removeItem("session_view");
@@ -111,6 +143,16 @@ const App = () => {
     }
   });
   if (view === "coordinator") return React.createElement(CoordinatorDashboard, {
+    user,
+    onSignOut: () => {
+      localStorage.removeItem("session_user");
+      localStorage.removeItem("session_view");
+      setView("landing");
+      setUser(null);
+      history.pushState({ role: "landing", dash: "landing" }, "", "#landing");
+    }
+  });
+  if (view === "nurse") return React.createElement(NurseDashboard, {
     user,
     onSignOut: () => {
       localStorage.removeItem("session_user");
